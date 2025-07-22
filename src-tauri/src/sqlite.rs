@@ -1,5 +1,5 @@
 use rusqlite::{Connection, Result};
 
 pub fn get_connection() -> Result<Connection> {
-    Connection::open("app_data.sqlite3")
+    Connection::open("../app_data.sqlite3")
 }

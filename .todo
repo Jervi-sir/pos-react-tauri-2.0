@@ -1,0 +1,26 @@
+[x] install Tauri
+[x] install React
+[x] install sqlite to Tauri
+[x] configure Tauri so it will accept raw sql queries from front end
+[x] install react router dom
+[x] install shadcn ui
+[x] write a layout of a dashboard
+[] login screen
+  [] login logics to backend
+[] register screen
+  [] register logics to backend
+[x] list my users
+  [x] create new user
+  [x] edit this user
+  [x] delete user
+[x] list stocks
+  [x] create new product
+  [x] add product
+  [x] edit this product
+  [x] delete product
+[x] create sales session
+[x] create invoice
+[x] list categories
+  [x] create category
+  [x] delete category
+  [x] edit category
