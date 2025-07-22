@@ -13,6 +13,7 @@ import PosPage from './pages/pos/page';
 import SalesListPage from './pages/sales/page';
 import { AuthProvider } from './auth/auth-context';
 import { ThemeProvider } from './components/theme-provider';
+import AnalyticsPage from './pages/analytics/page';
 
 const router = createBrowserRouter([
   { path: '/', element: <App /> },
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
   { path: '/pos', element: <PosPage /> },
   { path: '/stocks', element: <StocksPage /> },
   { path: '/users', element: <UsersPage /> },
+  { path: '/analytics', element: <AnalyticsPage /> },
   { path: '/sql', element: <SqlQueriesPage /> },
 ])
 

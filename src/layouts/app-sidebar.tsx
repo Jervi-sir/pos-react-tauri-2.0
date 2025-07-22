@@ -1,5 +1,6 @@
 import * as React from "react"
 import {
+  ChartBarIcon,
   Command,
   Frame,
   Map,
@@ -55,6 +56,11 @@ const data = {
       icon: User2,
     },
     {
+      name: "Analytics",
+      url: "/analytics",
+      icon: ChartBarIcon,
+    },
+    {
       name: "Sql Queries",
       url: "/sql",
       icon: TerminalIcon,
@@ -86,7 +92,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <NavProjects projects={data.projects} />
         <div className="mt-auto px-1 w-full" >
-          <LogoutButton />  
+          <LogoutButton />
         </div>
       </SidebarContent>
       <SidebarFooter>
