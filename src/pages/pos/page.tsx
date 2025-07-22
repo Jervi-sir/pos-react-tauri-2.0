@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { runSql } from "@/runSql";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useAuth } from "@/auth/auth-context";
 
 type Product = {
   id: number;
@@ -18,7 +19,8 @@ type CartItem = Product & {
 };
 
 export default function PosPage() {
-  const userId = 1;
+  const { user } = useAuth();
+  const userId = user?.id;
   const [barcode, setBarcode] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [productLookup, setProductLookup] = useState<Product | null>(null);

@@ -11,6 +11,8 @@ import StocksPage from './pages/stocks/page';
 import UsersPage from './pages/users/page';
 import PosPage from './pages/pos/page';
 import SalesListPage from './pages/sales/page';
+import { AuthProvider } from './auth/auth-context';
+import { ThemeProvider } from './components/theme-provider';
 
 const router = createBrowserRouter([
   { path: '/', element: <App /> },
@@ -25,8 +27,12 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AppLayout>
-      <RouterProvider router={router} />
-    </AppLayout>
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <AuthProvider>
+        <AppLayout>
+          <RouterProvider router={router} />
+        </AppLayout>
+      </AuthProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

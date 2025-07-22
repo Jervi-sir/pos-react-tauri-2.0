@@ -13,13 +13,18 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { ModeToggle } from "@/components/mode-toggle"
+import { useAuth } from "@/auth/auth-context"
+import { LoginPage } from "@/pages/auth/login"
 
 const AppLayout = ({ children }: any) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-8">Loading…</div>;
+  if (!user) return <LoginPage />;
+
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+    <>
       <div>
         <SidebarProvider>
           <AppSidebar />
@@ -54,7 +59,7 @@ const AppLayout = ({ children }: any) => {
         </SidebarProvider>
       </div>
       <Toaster />
-    </ThemeProvider>
+    </>
   );
 };
 

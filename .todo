@@ -5,8 +5,8 @@
 [x] install react router dom
 [x] install shadcn ui
 [x] write a layout of a dashboard
-[] login screen
-  [] login logics to backend
+[x] login screen
+  [x] login logics to backend
 [] register screen
   [] register logics to backend
 [x] list my users
@@ -24,3 +24,7 @@
   [x] create category
   [x] delete category
   [x] edit category
+
+[] build
+[] test
+[] verify where db is located at, and where images are stored at

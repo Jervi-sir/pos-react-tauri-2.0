@@ -1,21 +1,14 @@
 import * as React from "react"
 import {
-  BookOpen,
-  Bot,
   Command,
   Frame,
-  LifeBuoy,
   Map,
   PieChart,
-  Send,
-  Settings2,
-  SquareTerminal,
   TerminalIcon,
   User2,
 } from "lucide-react"
 
 import { NavProjects } from "@/components/nav-projects"
-import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -26,25 +19,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { LogoutButton } from "./logout-button"
+import { useAuth } from "@/auth/auth-context"
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  navSecondary: [
-    {
-      title: "Support",
-      url: "#",
-      icon: LifeBuoy,
-    },
-    {
-      title: "Feedback",
-      url: "#",
-      icon: Send,
-    },
-  ],
   projects: [
     {
       name: "Stocks",
@@ -85,6 +63,7 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user } = useAuth();
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader>
@@ -106,10 +85,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavProjects projects={data.projects} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <div className="mt-auto px-1 w-full" >
+          <LogoutButton />  
+        </div>
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   )
