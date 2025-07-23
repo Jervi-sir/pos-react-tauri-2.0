@@ -1,6 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod sqlite;
-use std::fs;
 
 #[tauri::command]
 async fn run_sql(query: String) -> Result<serde_json::Value, String> {
@@ -51,38 +50,15 @@ fn rusqlite_value_to_json(val: rusqlite::types::Value) -> serde_json::Value {
 }
 
 #[tauri::command]
-async fn save_product_image(filename: String, file_bytes: Vec<u8>) -> Result<String, String> {
-    // Path: ./public/images/
-    let mut images_path = std::env::current_dir().unwrap();
-    images_path.push("../public/images");
-
-    // Ensure directory exists
-    if let Err(e) = fs::create_dir_all(&images_path) {
-        return Err(format!("Failed to create images directory: {}", e));
-    }
-
-    images_path.push(&filename);
-
-    // Save file
-    if let Err(e) = fs::write(&images_path, &file_bytes) {
-        return Err(format!("Failed to save image: {}", e));
-    }
-
-    // Return relative path
-    Ok(format!("images/{}", filename))
-}
-
-#[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, run_sql, save_product_image])
+        .invoke_handler(tauri::generate_handler![greet, run_sql])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

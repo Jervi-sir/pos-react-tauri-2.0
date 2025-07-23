@@ -40,7 +40,7 @@ CREATE TABLE products (
   category_id INTEGER NOT NULL,
   name        TEXT NOT NULL,
   barcode     TEXT NOT NULL,
-  image_url   TEXT,
+  image_base64   TEXT,
   price_unit  REAL NOT NULL DEFAULT 0,
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL,
@@ -59,7 +59,7 @@ CREATE TABLE sales (
 CREATE TABLE product_images (
   id         INTEGER PRIMARY KEY,
   product_id INTEGER NOT NULL,
-  image_url  TEXT,
+  image_base64  TEXT,
   created_at TEXT,
   FOREIGN KEY(product_id) REFERENCES products(id)
 );

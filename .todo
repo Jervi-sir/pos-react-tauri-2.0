@@ -30,6 +30,9 @@
 [] maybe setup the change into the theme
 [] change into the brand name like dynamic
 
-[] build
-[] test
-[] verify where db is located at, and where images are stored at
+[x] build
+[x] test
+[x] verify where db is located at, and where images are stored at
+[x] issue with images after build
+[] add export database
+[] add export of the list by date

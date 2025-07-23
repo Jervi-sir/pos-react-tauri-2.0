@@ -1,7 +1,13 @@
-# Tauri + React + Typescript
+### tool
+its a pos
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
 
-## Recommended IDE Setup
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+### image paths after build
+
+Windows: C:\Users\<username>\AppData\Roaming\<YourApp>\images\
+macOS: ~/Library/Application Support/<YourApp>/images/
+Linux: ~/.config/<YourApp>/images/
+
+
+### db path after build

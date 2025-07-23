@@ -10,7 +10,7 @@ type Product = {
   name: string;
   barcode: string;
   price: number;
-  image_url?: string;
+  image_base64?: string;
 };
 
 type CartItem = Product & {
@@ -23,6 +23,7 @@ export default function PosPage() {
   const userId = user?.id;
   const [barcode, setBarcode] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
+  // @ts-ignore
   const [productLookup, setProductLookup] = useState<Product | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [doneDialog, setDoneDialog] = useState(false);
@@ -37,7 +38,7 @@ export default function PosPage() {
     setError(null);
     if (!code.trim()) return;
     const res: any = await runSql(
-      `SELECT id, name, barcode, price_unit as price, image_url FROM products WHERE barcode = '${code.replace(/'/g, "''")}' LIMIT 1`
+      `SELECT id, name, barcode, price_unit as price, image_base64 FROM products WHERE barcode = '${code.replace(/'/g, "''")}' LIMIT 1`
     );
     const product = res.rows?.[0];
     if (!product) {
@@ -200,8 +201,8 @@ export default function PosPage() {
             {cart.map(item => (
               <tr key={item.id} className="border-t">
                 <td className="px-4 py-2 flex items-center gap-2">
-                  {item.image_url && (
-                    <img src={`/${item.image_url}`} alt={item.name} className="h-10 w-10 object-cover rounded" />
+                  {item.image_base64 && (
+                    <img src={`/${item.image_base64}`} alt={item.name} className="h-10 w-10 object-cover rounded" />
                   )}
                   {item.name}
                 </td>

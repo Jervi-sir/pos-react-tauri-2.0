@@ -1,12 +1,13 @@
-import { createRoot } from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from "react-router";
+// main.tsx
+import { createRoot } from 'react-dom/client';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { StrictMode } from 'react';
 import App from './App';
 import SqlQueriesPage from './pages/sql-queries/page';
 import AppLayout from './layouts/layout';
-import './App.css'
+import './App.css';
 import CategoriesPage from './pages/categories/page';
-import InvoicesPage from './pages/invoinces/page';
+import InvoicesPage from './pages/invoices/page';
 import StocksPage from './pages/stocks/page';
 import UsersPage from './pages/users/page';
 import PosPage from './pages/pos/page';
@@ -14,27 +15,35 @@ import SalesListPage from './pages/sales/page';
 import { AuthProvider } from './auth/auth-context';
 import { ThemeProvider } from './components/theme-provider';
 import AnalyticsPage from './pages/analytics/page';
+import { initDatabase } from './lib/init-database';
+
+(async () => {
+  await initDatabase();
+})().catch(console.error);
 
 const router = createBrowserRouter([
-  { path: '/', element: <App /> },
-  { path: '/categories', element: <CategoriesPage /> },
-  { path: '/invoices', element: <InvoicesPage /> },
-  { path: '/sales', element: <SalesListPage /> },
-  { path: '/pos', element: <PosPage /> },
-  { path: '/stocks', element: <StocksPage /> },
-  { path: '/users', element: <UsersPage /> },
-  { path: '/analytics', element: <AnalyticsPage /> },
-  { path: '/sql', element: <SqlQueriesPage /> },
-])
+  {
+    element: <AppLayout />,
+    children: [
+      { path: '/', element: <App /> },
+      { path: '/categories', element: <CategoriesPage /> },
+      { path: '/invoices', element: <InvoicesPage /> },
+      { path: '/sales', element: <SalesListPage /> },
+      { path: '/pos', element: <PosPage /> },
+      { path: '/stocks', element: <StocksPage /> },
+      { path: '/users', element: <UsersPage /> },
+      { path: '/analytics', element: <AnalyticsPage /> },
+      { path: '/sql', element: <SqlQueriesPage /> },
+    ],
+  },
+]);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
       <AuthProvider>
-        <AppLayout>
-          <RouterProvider router={router} />
-        </AppLayout>
+        <RouterProvider router={router} />
       </AuthProvider>
     </ThemeProvider>
   </StrictMode>,
-)
+);

@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { invoke } from "@tauri-apps/api/core";
 import { runSql } from "@/runSql";
+import { fileToBase64 } from "@/lib/utils";
 
 type Product = {
   id: number;
@@ -12,7 +12,7 @@ type Product = {
   barcode: string;
   category_id: number;
   category_name?: string;
-  image_url?: string;
+  image_base64?: string;
   price_unit: number;
   created_at: string;
   updated_at: string;
@@ -83,7 +83,7 @@ export default function StockPage() {
     setProductBarcode(prod?.barcode ?? "");
     setCategoryId(prod?.category_id ?? "");
     setPriceUnit(prod?.price_unit ?? "");
-    setImagePreview(prod?.image_url ? `${prod.image_url}` : null);
+    setImagePreview(prod?.image_base64 ? `${prod.image_base64}` : null);
     setImageFile(null);
     setOpen(true);
     setError(null);
@@ -103,23 +103,14 @@ export default function StockPage() {
       setError("All fields required");
       return;
     }
-    let imageUrl = imagePreview ? imagePreview.replace('/images/', '') : null;
-
+    let imageBase64 = null;
     // If new image uploaded
     if (imageFile) {
-      const arrayBuffer = await imageFile.arrayBuffer();
-      const bytes = Array.from(new Uint8Array(arrayBuffer));
-      const ext = imageFile.name.split('.').pop();
-      const filename = `product_${Date.now()}.${ext}`;
-      try {
-        imageUrl = await invoke<string>("save_product_image", {
-          filename,
-          fileBytes: bytes,
-        });
-      } catch (e: any) {
-        setError("Failed to save image: " + (e?.message ?? e));
-        return;
-      }
+      imageBase64 = await fileToBase64(imageFile);
+    } else if (editId) {
+      // keep existing image if editing and no new file selected
+      const oldProd = products.find((p) => p.id === editId);
+      imageBase64 = oldProd?.image_base64 || null;
     }
 
     try {
@@ -130,20 +121,20 @@ export default function StockPage() {
             barcode = '${productBarcode.replace(/'/g, "''")}', 
             category_id = ${categoryId}, 
             price_unit = ${Number(priceUnit)},
-            ${imageUrl ? `image_url = '${imageUrl}',` : ""} 
+            image_base64 = ${imageBase64 ? `'${imageBase64}'` : "NULL"},
             updated_at = '${new Date().toISOString()}'
           WHERE id = ${editId}
         `);
       } else {
         await runSql(`
           INSERT INTO products 
-            (name, barcode, category_id, price_unit, image_url, created_at, updated_at)
+            (name, barcode, category_id, price_unit, image_base64, created_at, updated_at)
           VALUES (
             '${productName.replace(/'/g, "''")}', 
             '${productBarcode.replace(/'/g, "''")}', 
             ${categoryId}, 
             ${Number(priceUnit)},
-            ${imageUrl ? `'${imageUrl}'` : "NULL"}, 
+            ${imageBase64 ? `'${imageBase64}'` : "NULL"}, 
             '${new Date().toISOString()}', 
             '${new Date().toISOString()}'
           )
@@ -208,9 +199,9 @@ export default function StockPage() {
             {products.map((prod) => (
               <tr key={prod.id} className="border-t">
                 <td className="px-2 py-1">
-                  {prod.image_url ? (
+                  {prod.image_base64 ? (
                     <img
-                      src={`/${prod.image_url}`}
+                      src={`data:image/png;base64,${prod.image_base64}`}
                       alt={prod.name}
                       className="h-10 w-10 object-cover rounded"
                     />
@@ -289,10 +280,10 @@ export default function StockPage() {
               </SelectTrigger>
               <SelectContent>
                 {categories.map(cat => (
-                <SelectItem key={cat.id} value={cat.id.toString()}>
-                  {cat.name}
-                </SelectItem>
-              ))}
+                  <SelectItem key={cat.id} value={cat.id.toString()}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Input

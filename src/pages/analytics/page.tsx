@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { runSql } from "@/runSql";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, Legend } from "recharts";
 import { SalesByCategoryPieChart } from "./sales-by-category-pie-chart";
 import { TopProductsBarChart } from "./top-products-bar-chart";
 import { SalesAreaChart } from "./sales-area-chart";
@@ -10,11 +9,15 @@ import { SalesAreaChart } from "./sales-area-chart";
 const currency = (n: number) => "DA" + (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
 
 export default function AnalyticsPage() {
+  // @ts-ignore
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState({ revenue: 0, sales: 0, avgSale: 0, inventoryValue: 0 });
-  const [salesTrend, setSalesTrend] = useState<any[]>([]);
+  // @ts-ignore
   const [topProducts, setTopProducts] = useState<any[]>([]);
+  // @ts-ignore
   const [categorySales, setCategorySales] = useState<any[]>([]);
+  // @ts-ignore
+  const [salesTrend, setSalesTrend] = useState<any[]>([]);
+  const [summary, setSummary] = useState({ revenue: 0, sales: 0, avgSale: 0, inventoryValue: 0 });
   const [lowStock, setLowStock] = useState<any[]>([]);
 
   useEffect(() => {
@@ -138,7 +141,7 @@ export default function AnalyticsPage() {
                     <td colSpan={3} className="text-center text-gray-400 py-2">All stock ok</td>
                   </tr>
                 ) : (
-                  lowStock.map((prod, idx) => (
+                  lowStock.map((prod) => (
                     <tr key={prod.id}>
                       <td className="px-2 py-1">{prod.name}</td>
                       <td className="px-2 py-1">{prod.barcode}</td>

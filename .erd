@@ -434,20 +434,20 @@
       "nB9jl9Dej7WtMg6dnxJfv": {
         "id": "nB9jl9Dej7WtMg6dnxJfv",
         "tableId": "kn0-N3T8Lxjr53riXiC8y",
-        "name": "image_url",
+        "name": "image_base64",
         "comment": "",
         "dataType": "string",
         "default": "",
         "options": 0,
         "ui": {
           "keys": 0,
-          "widthName": 60,
+          "widthName": 77,
           "widthComment": 60,
           "widthDataType": 60,
           "widthDefault": 60
         },
         "meta": {
-          "updateAt": 1753090010532,
+          "updateAt": 1753232222803,
           "createAt": 1753089110088
         }
       },
@@ -554,20 +554,20 @@
       "DkjjSc7wSaJfHs7CG6aBI": {
         "id": "DkjjSc7wSaJfHs7CG6aBI",
         "tableId": "0Aq8vflBfpjUoSfQ1TpdA",
-        "name": "image_url",
+        "name": "image_base64",
         "comment": "",
         "dataType": "string",
         "default": "",
         "options": 0,
         "ui": {
           "keys": 0,
-          "widthName": 60,
+          "widthName": 77,
           "widthComment": 60,
           "widthDataType": 60,
           "widthDefault": 60
         },
         "meta": {
-          "updateAt": 1753090081855,
+          "updateAt": 1753232220749,
           "createAt": 1753089169088
         }
       },
@@ -1492,7 +1492,7 @@
           "columnIds": [
             "VOm8aBhWgVTyH1qRs9xql"
           ],
-          "x": 1202.1704,
+          "x": 1216.1704,
           "y": 587.1827999999999,
           "direction": 2
         },
@@ -1511,7 +1511,7 @@
           "columnIds": [
             "ttFOpvlgAv6aJfyggbeFD"
           ],
-          "x": 1202.1704,
+          "x": 1216.1704,
           "y": 512.5161333333333,
           "direction": 2
         },
@@ -1539,7 +1539,7 @@
           "columnIds": [
             "ttFOpvlgAv6aJfyggbeFD"
           ],
-          "x": 1018.1704,
+          "x": 1025.1704,
           "y": 475.1828,
           "direction": 4
         },
@@ -1567,7 +1567,7 @@
           "columnIds": [
             "ttFOpvlgAv6aJfyggbeFD"
           ],
-          "x": 1202.1704,
+          "x": 1216.1704,
           "y": 661.8494666666666,
           "direction": 2
         },
