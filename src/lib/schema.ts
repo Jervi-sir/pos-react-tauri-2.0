@@ -18,6 +18,17 @@ export const schemaStatements = [
     created_by   INTEGER NOT NULL,
     FOREIGN KEY(created_by) REFERENCES users(id)
   );`,
+  `CREATE TABLE IF NOT EXISTS products (
+    id          INTEGER PRIMARY KEY,
+    category_id INTEGER NOT NULL,
+    name        TEXT NOT NULL,
+    barcode     TEXT NOT NULL,
+    image_base64   TEXT,
+    price_unit  REAL NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    FOREIGN KEY(category_id) REFERENCES categories(id)
+  );`,
   `CREATE TABLE IF NOT EXISTS stock_entries (
     id             INTEGER PRIMARY KEY,
     product_id     INTEGER,
@@ -29,17 +40,6 @@ export const schemaStatements = [
     updated_at     TEXT,
     FOREIGN KEY(product_id) REFERENCES products(id),
     FOREIGN KEY(added_by) REFERENCES users(id)
-  );`,
-  `CREATE TABLE IF NOT EXISTS products (
-    id          INTEGER PRIMARY KEY,
-    category_id INTEGER NOT NULL,
-    name        TEXT NOT NULL,
-    barcode     TEXT NOT NULL,
-    image_base64   TEXT,
-    price_unit  REAL NOT NULL DEFAULT 0,
-    created_at  TEXT NOT NULL,
-    updated_at  TEXT NOT NULL,
-    FOREIGN KEY(category_id) REFERENCES categories(id)
   );`,
   `CREATE TABLE IF NOT EXISTS sales (
     id          INTEGER PRIMARY KEY,

@@ -9,6 +9,7 @@ type User = {
   id: number;
   name: string;
   email: string;
+  password: string;
   role: "owner" | "admin" | "cashier";
 };
 
@@ -36,7 +37,7 @@ export default function UsersScreen() {
     setLoading(true);
     try {
       const res: any = await runSql(`
-        SELECT id, name, email, role FROM users 
+        SELECT id, name, email, role, password FROM users 
         WHERE role != 'admin' 
         ORDER BY id DESC
       `);
@@ -56,7 +57,7 @@ export default function UsersScreen() {
     setEditId(user?.id ?? null);
     setUserName(user?.name ?? "");
     setUserEmail(user?.email ?? "");
-    setUserPassword("");
+    setUserPassword(user?.password ?? "");
     setUserRole(user?.role ?? "cashier");
     setOpen(true);
     setError(null);
@@ -64,7 +65,7 @@ export default function UsersScreen() {
 
   // Create or edit user
   const handleSave = async () => {
-    if (!userName.trim() || !userEmail.trim() || !userRole) {
+    if (!userName.trim() || !userEmail.trim() || !userPassword.trim() || !userRole) {
       setError("All fields are required");
       return;
     }
@@ -74,6 +75,7 @@ export default function UsersScreen() {
           UPDATE users SET 
             name = '${userName.replace(/'/g, "''")}', 
             email = '${userEmail.replace(/'/g, "''")}',
+            password = '${userPassword.replace(/'/g, "''")}',
             role = '${userRole}',
             updated_at = '${new Date().toISOString()}'
           WHERE id = ${editId}
@@ -117,7 +119,7 @@ export default function UsersScreen() {
   };
 
   return (
-    <div className="py-8">
+    <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Users</h2>
         <Button onClick={() => openDialog()}>New User</Button>
@@ -199,14 +201,12 @@ export default function UsersScreen() {
               placeholder="Email"
               type="email"
             />
-            {!editId && (
-              <Input
-                value={userPassword}
-                onChange={e => setUserPassword(e.target.value)}
-                placeholder="Password"
-                type="password"
-              />
-            )}
+            <Input
+              value={userPassword}
+              onChange={e => setUserPassword(e.target.value)}
+              placeholder="Password"
+              type="password"
+            />
             <Select
               value={userRole}
               onValueChange={v => setUserRole(v as any)}

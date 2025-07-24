@@ -35,7 +35,6 @@
 [x] add export database
 [x] add export of the list by date
 [x] make links active
-
 [x] protect some routes
 
 [] test export 
@@ -43,4 +42,86 @@
   [] invoices
   [] stocks
 
-[] make the add product just adding quantity if it already exists, and make it suitable for the barcode scanning
+### User Journey
+
+  - make the add product just adding quantity if it already exists, and make it suitable for the barcode scanning
+  - User login: Authenticate via email and password (users table). @done
+  - Check user role after login (users.role). @done
+  - Owner/admin: Add/edit/remove users (create/update/delete in users). @done
+  - User: Change own password. @done
+  - Owner/admin: Add new product (name, barcode, price, category, image). @done
+  - Owner/admin: Edit product details. @done
+  - Owner/admin: Remove/deactivate product. @done
+  - Owner/admin: Add new category. @done
+  - Owner/admin: Edit/remove category. @done
+  - Upload product images. @done
+
+Stock Management
+  - Owner/admin: Add stock entry (choose product, quantity, supplier, purchase price).
+  - Owner/admin: View stock history (list/filter stock_entries). @done
+  - Owner/admin: Adjust stock (correct inventory if needed).
+
+  - Select product(s) for sale (scan/search/add from list). @done
+  - Add products to cart (hold in UI state). @done
+  - Adjust quantity in cart. @done
+  - Remove item from cart. @done
+  - Checkout: Create sale (sales), sale items (sale_items), link to cashier (sold_by). @done
+  - Print/generate receipt after sale. @done
+
+Invoice Management
+  - Create purchase invoice for stock (invoices, invoice_type = stock_purchase).
+  - Create sales invoice (invoices, invoice_type = sale).
+  - List/filter/search invoices.
+  - Link invoice to creator (created_by).
+
+  - Owner/admin: Edit store information (name, address, phone, email, tax ID, currency, logo). @done
+
+  - Export sales data (CSV/PDF). @done
+  - View inventory report (current stock per product). @done
+  - Export inventory data. @done
+
+  - Role-based UI: Show/hide features based on user’s role. @done
+  - Product search/filter (by name, barcode, category). @done
+  - Category filter in product list. @done
+  - View product details (with images). @done
+  - User profile page. @done
+
+
+### **Main Menu Pages**
+- **Login** @done
+    - Login page (authentication) @done
+- **Dashboard / Home** @done
+    - Overview: sales summary, @done
+    - today’s activity, @done
+    - quick links (optional) @done
+    - sale revenue @done
+    - top selling products @done
+    - sales by category @done
+    - low stock products @done
+- **Sales** @done
+    - New Sale / POS (scan/add products, cart, checkout) @done
+    - Sales History (list of past sales, receipt reprint, refund/void if needed) @done
+    - Sale Details (view a single sale and its items) @done
+- **Products** @done
+    - Product List (search, filter, view products) @done
+    - Add/Edit Product @done
+    - Product Details (view images, stock, history) @done
+    - Categories Management (list/add/edit categories) @done
+- **Stock**
+    - Stock Entries (add new stock, view stock history)
+    - Inventory Overview (current stock per product, low stock alerts)
+- **Invoices** @done
+    - Invoice List (sales & purchases) @done
+    - Add/Edit Invoice (purchase/sale) @done
+    - Invoice Details @done
+- **Users** @done
+    - User List (view/add/edit/remove users) @done
+    - User Profile (for current user: change password, update info) @done
+- **Store Info** @done
+    - Edit Store Info (store name, address, logo, tax, currency, etc.) @done
+- **Reports** @done
+    - Sales Reports (daily, range, by product/cashier) @done
+    - Inventory Reports @done
+    - Export Data (CSV/PDF) @done
+
+- toast when a product is on low @done

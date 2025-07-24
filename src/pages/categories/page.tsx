@@ -90,7 +90,7 @@ export default function CategoriesPage() {
   };
 
   return (
-    <div className="py-8">
+    <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Categories</h2>
         <Button onClick={() => openDialog()}>New Category</Button>

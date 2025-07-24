@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useAuth } from "@/auth/auth-context"
+import { useAuth } from "@/context/auth-context"
 import { useState } from "react"
 
 export function LoginPage({

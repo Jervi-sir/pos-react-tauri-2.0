@@ -1,11 +1,26 @@
 import React, { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Button,
+} from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { runSql } from "@/runSql";
-import { fileToBase64 } from "@/lib/utils";
-import { ExportProductsDialog } from "./export-product-dialog";
+import { cn, fileToBase64 } from "@/lib/utils";
 import { ExportDialog } from "@/components/export-dialog";
 
 type Product = {
@@ -18,6 +33,7 @@ type Product = {
   price_unit: number;
   created_at: string;
   updated_at: string;
+  stock_left?: number;
 };
 
 type Category = {
@@ -27,12 +43,29 @@ type Category = {
 
 const PAGE_SIZE = 10;
 
+const sortOptions = [
+  { value: "name ASC", label: "Name (A-Z)" },
+  { value: "name DESC", label: "Name (Z-A)" },
+  { value: "price_unit ASC", label: "Price (Low to High)" },
+  { value: "price_unit DESC", label: "Price (High to Low)" },
+  { value: "stock_left DESC", label: "Stock (High to Low)" },
+  { value: "stock_left ASC", label: "Stock (Low to High)" },
+  { value: "created_at DESC", label: "Newest" },
+  { value: "created_at ASC", label: "Oldest" },
+];
+
 export default function StockPage() {
+  // Main states
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  // Filter, sort, search
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [sortBy, setSortBy] = useState(sortOptions[0].value);
 
   // Dialog states
   const [open, setOpen] = useState(false);
@@ -40,45 +73,63 @@ export default function StockPage() {
   const [productName, setProductName] = useState("");
   const [productBarcode, setProductBarcode] = useState("");
   const [categoryId, setCategoryId] = useState<number | "">("");
-  const [priceUnit, setPriceUnit] = useState<number | "">(""); // NEW
+  const [priceUnit, setPriceUnit] = useState<number | "">("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Load categories for select
+  // Fetch categories
   const fetchCategories = async () => {
     const res: any = await runSql("SELECT id, name FROM categories ORDER BY name");
     setCategories(res.rows || []);
   };
 
-  // Load products for current page
+  // Dynamic fetch for products (with filters/sort/search)
   const fetchProducts = async () => {
     setLoading(true);
     const offset = (page - 1) * PAGE_SIZE;
+    let where = "1=1";
+    if (search.trim())
+      where += ` AND (LOWER(p.name) LIKE '%${search.toLowerCase().replace(/'/g, "''")}%' OR p.barcode LIKE '%${search.replace(/'/g, "''")}%')`;
+    if (filterCategory !== "all")
+      where += ` AND p.category_id = ${Number(filterCategory)}`;
+
+    const sortField = sortBy.startsWith("stock_left")
+      ? `stock_left ${sortBy.endsWith("DESC") ? "DESC" : "ASC"}`
+      : `p.${sortBy}`;
+
     const res: any = await runSql(`
-      SELECT p.*, c.name as category_name
+      SELECT
+        p.*,
+        c.name as category_name,
+        COALESCE((SELECT SUM(quantity) FROM stock_entries WHERE product_id = p.id), 0)
+          -
+        COALESCE((SELECT SUM(quantity) FROM sale_items WHERE product_id = p.id), 0)
+          AS stock_left
       FROM products p
       LEFT JOIN categories c ON c.id = p.category_id
-      ORDER BY p.created_at DESC
+      WHERE ${where}
+      ORDER BY ${sortField}
       LIMIT ${PAGE_SIZE} OFFSET ${offset}
     `);
     setProducts(res.rows || []);
 
-    // Get total count
-    const countRes: any = await runSql(`SELECT COUNT(*) as cnt FROM products`);
+    // Count total for pagination
+    const countRes: any = await runSql(`
+      SELECT COUNT(*) as cnt
+      FROM products p
+      WHERE ${where}
+    `);
     setTotalCount(countRes.rows?.[0]?.cnt || 0);
 
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-  useEffect(() => {
-    fetchProducts();
-  }, [page]);
+  useEffect(() => { fetchCategories(); }, []);
+  useEffect(() => { setPage(1); }, [search, filterCategory, sortBy]);
+  useEffect(() => { fetchProducts(); }, [page, search, filterCategory, sortBy]);
 
-  // Open dialog for create/edit
+  // Open dialog
   const openDialog = (prod?: Product) => {
     setEditId(prod?.id ?? null);
     setProductName(prod?.name ?? "");
@@ -91,7 +142,7 @@ export default function StockPage() {
     setError(null);
   };
 
-  // Handle file change
+  // File input
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       setImageFile(e.target.files[0]);
@@ -99,18 +150,16 @@ export default function StockPage() {
     }
   };
 
-  // Save product (create or update)
+  // Save product
   const handleSave = async () => {
     if (!productName.trim() || !productBarcode.trim() || !categoryId || !priceUnit || isNaN(Number(priceUnit))) {
       setError("All fields required");
       return;
     }
     let imageBase64 = null;
-    // If new image uploaded
     if (imageFile) {
       imageBase64 = await fileToBase64(imageFile);
     } else if (editId) {
-      // keep existing image if editing and no new file selected
       const oldProd = products.find((p) => p.id === editId);
       imageBase64 = oldProd?.image_base64 || null;
     }
@@ -167,18 +216,66 @@ export default function StockPage() {
     }
   };
 
-  // Pagination helpers
   const pageCount = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
-    <div className="py-8">
-      <div className="flex justify-between items-center mb-4">
+    <div>
+      {/* Controls: Search, Filter, Sort */}
+      <div className="flex flex-wrap gap-2 justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Products</h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-1">
+          {/* Search input */}
+          <Input
+            placeholder="Search product or barcode"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full"
+          />
+
+          {/* Category Filter */}
+          <Select
+            value={filterCategory}
+            onValueChange={v => setFilterCategory(v)}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Categories</SelectLabel>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map(cat => (
+                  <SelectItem key={cat.id} value={cat.id.toString()}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+
+          {/* Sort */}
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Sort</SelectLabel>
+                {sortOptions.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+
           <Button onClick={() => openDialog()}>New Product</Button>
           <ExportDialog
             buildQuery={(range, s, e) =>
-              `SELECT p.*, c.name as category_name
+              `SELECT p.*, c.name as category_name,
+                COALESCE((SELECT SUM(quantity) FROM stock_entries WHERE product_id = p.id), 0)
+                  -
+                COALESCE((SELECT SUM(quantity) FROM sale_items WHERE product_id = p.id), 0)
+                  AS stock_left
                 FROM products p
                 LEFT JOIN categories c ON c.id = p.category_id
                 ${range === "between" && s && e ? `WHERE (date(p.created_at) >= '${s}' AND date(p.created_at) <= '${e}')
@@ -188,12 +285,13 @@ export default function StockPage() {
             filePrefix="products"
             excludeFields={["image_base64"]}
           />
-
         </div>
       </div>
-      {loading && <div>Loading...</div>}
+
+      {/* Table */}
+      {/* {loading && <div>Loading...</div>} */}
       {error && <div className="mb-2 text-red-600">{error}</div>}
-      <div className="border rounded-xl shadow overflow-x-auto">
+      <div className="border rounded-md shadow overflow-x-auto">
         <table className="min-w-full">
           <thead>
             <tr>
@@ -201,14 +299,15 @@ export default function StockPage() {
               <th className="px-4 py-2 text-left">Name</th>
               <th className="px-4 py-2 text-left">Barcode</th>
               <th className="px-4 py-2 text-left">Category</th>
-              <th className="px-4 py-2 text-left">Price</th> {/* NEW */}
+              <th className="px-4 py-2 text-left">Price</th>
+              <th className="px-4 py-2 text-left">Stock</th>
               <th className="px-4 py-2 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
             {products.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-6">
+                <td colSpan={7} className="text-center py-6">
                   No products
                 </td>
               </tr>
@@ -226,10 +325,15 @@ export default function StockPage() {
                     <div className="h-10 w-10 bg-gray-100 rounded flex items-center justify-center text-gray-400">-</div>
                   )}
                 </td>
-                <td className="px-4 py-2">{prod.name}</td>
-                <td className="px-4 py-2">{prod.barcode}</td>
-                <td className="px-4 py-2">{prod.category_name}</td>
-                <td className="px-4 py-2">{prod.price_unit?.toFixed(2)}</td>
+                {[
+                  prod.name,
+                  prod.barcode,
+                  prod.category_name,
+                  prod.price_unit?.toFixed(2),
+                  prod.stock_left ?? 0,
+                ].map((item, index) => (
+                  <td className={cn(["px-4 py-2", prod.stock_left && (prod.stock_left < 2 ? "text-orange-700" : "")])} key={index}>{item}</td>
+                ))}
                 <td className="px-4 py-2 text-center space-x-2">
                   <Button size="sm" variant="outline" onClick={() => openDialog(prod)}>
                     Edit
@@ -289,18 +393,21 @@ export default function StockPage() {
               className="w-full"
             />
             <Select
-              value={categoryId.toString()}
+              value={categoryId === "" ? "" : categoryId.toString()}
               onValueChange={v => setCategoryId(Number(v))}
             >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.id.toString()}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  <SelectLabel>Categories</SelectLabel>
+                  {categories.map(cat => (
+                    <SelectItem key={cat.id} value={cat.id.toString()}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
             <Input
@@ -328,6 +435,16 @@ export default function StockPage() {
                 />
               ) : null}
             </div>
+            {/* Show stock left (readonly) when editing */}
+            {editId && (
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Stock Left</label>
+                <Input
+                  value={products.find(p => p.id === editId)?.stock_left ?? 0}
+                  className="w-full bg-gray-100 dark:bg-neutral-900 cursor-not-allowed"
+                />
+              </div>
+            )}
           </div>
           {error && <div className="text-red-600 mt-2">{error}</div>}
           <DialogFooter className="gap-2">
@@ -338,6 +455,7 @@ export default function StockPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

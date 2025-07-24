@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { runSql } from "@/runSql";
-import { ExportSalesDialog } from "./export-sales-dialog";
 import { ExportDialog } from "@/components/export-dialog";
+import { InvoicePrintDialog } from "./invoice-print-dialog";
+import { PrinterIcon } from "lucide-react";
 
 type Sale = {
   id: number;
@@ -33,6 +34,8 @@ export default function SalesListPage() {
   const [expandedSale, setExpandedSale] = useState<number | null>(null);
   const [saleItems, setSaleItems] = useState<Record<number, SaleItem[]>>({});
   const [page, setPage] = useState(1);
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
   // Fetch sales
   const fetchSales = async () => {
@@ -79,7 +82,7 @@ export default function SalesListPage() {
   const pageCount = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
-    <div className="py-8">
+    <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Sales</h2>
         <ExportDialog
@@ -119,7 +122,7 @@ export default function SalesListPage() {
                   <td className="px-4 py-2">{new Date(sale.created_at).toLocaleString()}</td>
                   <td className="px-4 py-2">{sale.cashier || "-"}</td>
                   <td className="px-4 py-2 text-right">{sale.total_price?.toFixed(2)}</td>
-                  <td className="px-4 py-2 text-center">
+                  <td className="px-4 py-2 flex justify-end gap-2">
                     <Button
                       size="sm"
                       variant="outline"
@@ -127,6 +130,14 @@ export default function SalesListPage() {
                     >
                       {expandedSale === sale.id ? "Hide" : "Show"}
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setSelectedSale(sale); setInvoiceDialogOpen(true); }}
+                    >
+                      <PrinterIcon />
+                    </Button>
+
                   </td>
                 </tr>
                 {/* Expandable sale items */}
@@ -170,6 +181,12 @@ export default function SalesListPage() {
           </tbody>
         </table>
       </div>
+
+      <InvoicePrintDialog
+        open={invoiceDialogOpen}
+        onOpenChange={v => setInvoiceDialogOpen(v)}
+        sale={selectedSale}
+      />
       {/* Pagination */}
       {pageCount > 1 && (
         <div className="flex gap-2 justify-center my-4">

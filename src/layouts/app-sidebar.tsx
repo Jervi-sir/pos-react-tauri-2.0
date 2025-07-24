@@ -5,6 +5,7 @@ import {
   Frame,
   LogOutIcon,
   Map,
+  PanelBottom,
   PieChart,
   Settings,
   TerminalIcon,
@@ -23,31 +24,42 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { useAuth } from '@/auth/auth-context';
+import { useAuth } from '@/context/auth-context';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useStoreInfo } from './store-info-context';
+import { useStoreInfo } from '../context/store-info-context';
+import { useTheme } from '@/components/theme-provider';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, logout } = useAuth();
   const { storeInfo } = useStoreInfo();
+  const { sidebarVariant } = useTheme()
 
   // Define navigation items with canAccess as an array of roles
   const data = [
+    { name: 'Dashboard', url: '/dashboard', icon: PanelBottom, canAccess: ['owner', 'admin', 'cashier'] },
     { name: 'Stocks', url: '/stocks', icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Sales', url: '/sales', icon: PieChart, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Invoices', url: '/invoices', icon: Map, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Categories', url: '/categories', icon: Map, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Users', url: '/users', icon: User2, canAccess: ['owner', 'admin'] },
-    { name: 'Pos', url: '/pos', icon: User2, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Analytics', url: '/analytics', icon: ChartBarIcon, canAccess: ['owner', 'admin'] },
-    { name: 'Sql Queries', url: '/sql', icon: TerminalIcon, canAccess: ['owner'] },
-    { name: 'Settings', url: '/settings', icon: Settings, canAccess: ['owner', 'admin'] },
   ];
 
+  const salesData = [
+    { name: 'Pos', url: '/pos', icon: User2, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Sales', url: '/sales', icon: PieChart, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Invoices', url: '/invoices', icon: Map, canAccess: ['owner', 'admin', 'cashier'] },
+  ];
+
+  const adminData = [
+    { name: 'Users', url: '/users', icon: Map, canAccess: ['admin'] },
+    { name: 'Categories', url: '/categories', icon: Map, canAccess: ['admin'] },
+    { name: 'Sql Queries', url: '/sql', icon: TerminalIcon, canAccess: ['admin'] },
+  ];
+
+  // const settingData = [
+  //   { name: 'Settings', url: '/settings', icon: Settings, canAccess: ['owner', 'admin'] },
+  // ]
+
   return (
-    <Sidebar variant="floating" collapsible="icon" {...props}>
+    <Sidebar variant={sidebarVariant} collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -73,9 +85,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
-        <NavProjects data={data} userRole={user?.role} />
-
+      <SidebarContent className='gap-0'>
+        <NavGroup title="Main" data={data} userRole={user?.role} />
+        <NavGroup title="Sales" data={salesData} userRole={user?.role} />
+        <NavGroup title="Admin" data={adminData} userRole={user?.role} />
+        {/* <NavGroup data={settingData} userRole={user?.role} /> */}
         <SidebarGroup className="mt-auto">
           <SidebarMenu>
             <SidebarMenuItem>
@@ -96,9 +110,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   );
 }
 
-function NavProjects({
+function NavGroup({
   data,
   userRole,
+  title,
 }: {
   data: {
     name: string;
@@ -107,6 +122,7 @@ function NavProjects({
     canAccess: string[];
   }[];
   userRole: string | undefined;
+  title?: string
 }) {
   const location = useLocation();
 
@@ -129,8 +145,8 @@ function NavProjects({
   );
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>Menu</SidebarGroupLabel>
+    <SidebarGroup className='py-0'>
+      { title && <SidebarGroupLabel>{ title }</SidebarGroupLabel>}
       <SidebarMenu>
         {reactiveData.map((item) => {
           const isActive = location.pathname === item.url;

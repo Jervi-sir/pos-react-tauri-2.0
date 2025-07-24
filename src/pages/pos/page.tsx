@@ -1,190 +1,151 @@
-import React, { useState, useRef } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { runSql } from "@/runSql";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useAuth } from "@/auth/auth-context";
-
-type Product = {
-  id: number;
-  name: string;
-  barcode: string;
-  price: number;
-  image_base64?: string;
-};
-
-type CartItem = Product & {
-  quantity: number;
-  subtotal: number;
-};
+import { usePos } from "@/context/pos-context";
+import { InvoicePrintDialog } from "../sales/invoice-print-dialog";
+import { XCircle } from "lucide-react";
 
 export default function PosPage() {
-  const { user } = useAuth();
-  const userId = user?.id;
-  const [barcode, setBarcode] = useState("");
-  const [cart, setCart] = useState<CartItem[]>([]);
-  // @ts-ignore
-  const [productLookup, setProductLookup] = useState<Product | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [doneDialog, setDoneDialog] = useState(false);
+  const {
+    cart, barcode, setBarcode, productLookup, error,
+    lookupProduct, updateQuantity, removeItem, total,
+    handleCompleteSale, addToCart
+  } = usePos();
+
   const barcodeInputRef = useRef<HTMLInputElement>(null);
-  const [invoiceData, setInvoiceData] = useState<any | null>(null);
 
-  // Sum up the cart
-  const total = cart.reduce((sum, item) => sum + item.subtotal, 0);
+  // Live preview state (local to this page)
+  const [previewProducts, setPreviewProducts] = useState<any[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
-  // Find product by barcode
-  const lookupProduct = async (code: string) => {
-    setError(null);
-    if (!code.trim()) return;
-    const res: any = await runSql(
-      `SELECT id, name, barcode, price_unit as price, image_base64 FROM products WHERE barcode = '${code.replace(/'/g, "''")}' LIMIT 1`
-    );
-    const product = res.rows?.[0];
-    if (!product) {
-      setError("Product not found.");
-      setProductLookup(null);
+  // Invoice dialog state
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<any>(null);
+
+  // Live search as barcode changes
+  useEffect(() => {
+    if (!barcode.trim()) {
+      setPreviewProducts([]);
       return;
     }
-    setProductLookup(product);
-    // Add to cart or increase qty
-    setCart(cart => {
-      const idx = cart.findIndex(c => c.id === product.id);
-      if (idx >= 0) {
-        const newCart = [...cart];
-        newCart[idx].quantity += 1;
-        newCart[idx].subtotal = newCart[idx].quantity * newCart[idx].price;
-        return newCart;
-      } else {
-        return [
-          ...cart,
-          { ...product, quantity: 1, subtotal: product.price }
-        ];
-      }
+    setPreviewLoading(true);
+    runSql(
+      `SELECT id, name, barcode, price_unit as price, image_base64,
+        (COALESCE((SELECT SUM(quantity) FROM stock_entries WHERE product_id = p.id), 0) -
+        COALESCE((SELECT SUM(quantity) FROM sale_items WHERE product_id = p.id), 0)) AS stock_left
+      FROM products p
+      WHERE barcode LIKE '%${barcode.replace(/'/g, "''")}%'
+          OR name LIKE '%${barcode.replace(/'/g, "''")}%'
+      LIMIT 10`
+    ).then((res: any) => {
+      setPreviewProducts(res.rows || []);
+      setPreviewLoading(false);
     });
+  }, [barcode]);
+
+  // Add to cart from preview
+  const handleAddFromPreview = (product: any) => {
+    addToCart(product); // context handles logic!
     setBarcode("");
+    setPreviewProducts([]);
+    barcodeInputRef.current?.focus();
   };
 
-  // When user presses Enter or barcode scanner finishes
+  // On form submit: add first preview or fallback
   const handleBarcodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await lookupProduct(barcode);
-    setBarcode("");
-    // Focus input for next scan
+    if (previewProducts.length > 0) {
+      handleAddFromPreview(previewProducts[0]);
+    } else {
+      await lookupProduct(barcode);
+      setBarcode("");
+    }
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
-  // Update quantity in cart
-  const updateQuantity = (productId: number, qty: number) => {
-    setCart(cart =>
-      cart.map(item =>
-        item.id === productId
-          ? { ...item, quantity: qty, subtotal: qty * item.price }
-          : item
-      ).filter(item => item.quantity > 0)
-    );
-  };
-
-  // Remove item
-  const removeItem = (productId: number) => {
-    setCart(cart => cart.filter(item => item.id !== productId));
-  };
-
-  // Complete sale: save to db
-  const handleCompleteSale = async () => {
-    if (cart.length === 0) return;
-    try {
-      // Insert into sales
-      const now = new Date().toISOString();
-      await runSql(`
-      INSERT INTO sales (sold_by, total_price, created_at, updated_at)
-      VALUES (${userId}, ${total}, '${now}', '${now}')
-    `);
-
-      // Get sale id (last inserted row)
-      const saleRes: any = await runSql(`SELECT id FROM sales ORDER BY id DESC LIMIT 1`);
-      const saleId = saleRes.rows?.[0]?.id;
-
-      // Insert sale items
-      for (const item of cart) {
-        await runSql(`
-        INSERT INTO sale_items 
-          (product_id, sale_id, quantity, price_unit, subtotal, created_at, updated_at)
-        VALUES (
-          ${item.id}, ${saleId}, ${item.quantity}, ${item.price}, ${item.subtotal}, '${now}', '${now}'
-        )
-      `);
-      }
-
-      // Insert invoice
-      await runSql(`
-      INSERT INTO invoices (invoice_type, amount, created_at, updated_at, created_by)
-      VALUES ('sale', ${total}, '${now}', '${now}', ${userId})
-    `);
-
-      // Get invoice id
-      const invoiceRes: any = await runSql(`SELECT id FROM invoices ORDER BY id DESC LIMIT 1`);
-      const invoiceId = invoiceRes.rows?.[0]?.id;
-
-      // Fetch invoice details for print
-      const invoiceInfo: any = await runSql(`
-      SELECT i.id as invoice_id, i.amount, i.created_at, u.name AS cashier, s.id as sale_id
-      FROM invoices i
-      LEFT JOIN users u ON i.created_by = u.id
-      LEFT JOIN sales s ON s.total_price = i.amount AND s.created_at = i.created_at
-      WHERE i.id = ${invoiceId}
-      LIMIT 1
-    `);
-
-      const sale_id = invoiceInfo.rows?.[0]?.sale_id;
-      // Fetch sale items
-      const itemsRes: any = await runSql(`
-      SELECT si.quantity, si.price_unit, si.subtotal, p.name, p.barcode
-      FROM sale_items si
-      LEFT JOIN products p ON si.product_id = p.id
-      WHERE si.sale_id = ${sale_id}
-    `);
-
-      setInvoiceData({
-        ...invoiceInfo.rows?.[0],
-        items: itemsRes.rows || [],
-      });
-
-      setCart([]);
-      setProductLookup(null);
-      setError(null);
-      setDoneDialog(true);
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
-    }
-  };
-
-
-  // Focus barcode input on load
-  React.useEffect(() => {
+  // On mount, focus input
+  useEffect(() => {
     barcodeInputRef.current?.focus();
   }, []);
 
+  // Handle complete sale and show invoice dialog
+  const handleCompleteSaleAndShowInvoice = async () => {
+    // -- Insert into sales, sale_items, invoices, and fetch invoice data (from your previous context logic) --
+    // The context method handles the DB inserts and returns invoice info
+    const invoice = await handleCompleteSale() as any; // You may need to adapt this to return invoice info
+    if (!invoice) return; // if failed
+    // Set selectedSale for dialog
+    setSelectedSale({
+      id: invoice.invoice_id,
+      total_price: invoice.amount,
+      created_at: invoice.created_at,
+      cashier: invoice.cashier,
+    });
+    setInvoiceDialogOpen(true);
+  };
+
   return (
-    <div className="py-8">
+    <div>
       <h2 className="text-2xl font-bold mb-4">New Sale</h2>
-      <form onSubmit={handleBarcodeSubmit} className="mb-4 flex items-center gap-2">
-        <Input
-          ref={barcodeInputRef}
-          value={barcode}
-          onChange={e => setBarcode(e.target.value)}
-          placeholder="Scan or enter barcode"
-          className="flex-1"
-          autoFocus
-        />
-        <Button type="submit">Add</Button>
-      </form>
+      <div className="relative mb-4">
+        <form onSubmit={handleBarcodeSubmit} className="flex items-center gap-2">
+          <Input
+            ref={barcodeInputRef}
+            value={barcode}
+            onChange={e => setBarcode(e.target.value)}
+            placeholder="Scan or enter barcode or name"
+            className="flex-1"
+            autoFocus
+            autoComplete="off"
+          />
+          <Button type="submit">Add</Button>
+        </form>
+        {/* Live preview panel */}
+        {barcode.trim() && previewProducts.length > 0 && (
+          <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-neutral-900 border rounded-xl shadow-lg z-20 p-2">
+            {previewProducts.map((p) => {
+              const isUnavailable = !p.stock_left || p.stock_left <= 0;
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-3 px-2 py-2 rounded
+                    ${isUnavailable ? "opacity-50 cursor-not-allowed" : "hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"}
+                  `}
+                  onClick={() => !isUnavailable && handleAddFromPreview(p)}
+                  tabIndex={-1}
+                >
+                  {p.image_base64 && (
+                    <img
+                      src={`data:image/png;base64,${p.image_base64}`}
+                      alt={p.name} 
+                      className="h-8 w-8 object-cover rounded"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <div className="font-medium flex items-center gap-2">
+                      {p.name}
+                      {isUnavailable && (
+                        <span className="text-xs text-red-500 flex items-center gap-1 ml-2">
+                          <XCircle size={16} className="inline" /> Out of stock
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500">Barcode: {p.barcode}</div>
+                  </div>
+                  <div className="font-bold">{p.price.toFixed(2)}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
       {error && <div className="mb-2 text-red-600">{error}</div>}
 
-      <div className="border rounded-xl shadow  overflow-x-auto">
+      <div className="border rounded-xl shadow overflow-x-auto">
         <table className="min-w-full">
           <thead>
-            <tr className="">
+            <tr>
               <th className="px-4 py-2 text-left">Product</th>
               <th className="px-4 py-2 text-left">Price</th>
               <th className="px-4 py-2 text-center">Qty</th>
@@ -202,7 +163,7 @@ export default function PosPage() {
               <tr key={item.id} className="border-t">
                 <td className="px-4 py-2 flex items-center gap-2">
                   {item.image_base64 && (
-                    <img src={`/${item.image_base64}`} alt={item.name} className="h-10 w-10 object-cover rounded" />
+                    <img src={`data:image/png;base64,${item.image_base64}`} alt={item.name} className="h-10 w-10 object-cover rounded" />
                   )}
                   {item.name}
                 </td>
@@ -232,57 +193,24 @@ export default function PosPage() {
         <span className="text-xl font-bold">Total: {total.toFixed(2)}</span>
         <Button
           size="lg"
-          onClick={handleCompleteSale}
+          onClick={handleCompleteSaleAndShowInvoice}
           disabled={cart.length === 0}
         >
           Complete Sale
         </Button>
       </div>
 
-      {/* Success Dialog */}
-      <Dialog open={doneDialog} onOpenChange={setDoneDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Invoice</DialogTitle>
-          </DialogHeader>
-          {invoiceData ? (
-            <div id="invoice-print-area" className="text-sm">
-              <div className="font-bold text-lg mb-1">INVOICE #{invoiceData.invoice_id}</div>
-              <div>Date: {new Date(invoiceData.created_at).toLocaleString()}</div>
-              {/* <div>Cashier: {invoiceData.cashier || userId}</div> */}
-              <table className="min-w-full mt-3 mb-2 border">
-                <thead>
-                  <tr>
-                    <th className="text-left p-1">Name</th>
-                    <th className="text-left p-1">Barcode</th>
-                    <th className="text-right p-1">Qty</th>
-                    <th className="text-right p-1">Unit</th>
-                    <th className="text-right p-1">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoiceData.items.map((item: any, idx: number) => (
-                    <tr key={idx}>
-                      <td className="p-1">{item.name}</td>
-                      <td className="p-1">{item.barcode}</td>
-                      <td className="p-1 text-right">{item.quantity}</td>
-                      <td className="p-1 text-right">{Number(item.price_unit).toFixed(2)}</td>
-                      <td className="p-1 text-right">{Number(item.subtotal).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="text-right font-bold">TOTAL: {Number(invoiceData.amount).toFixed(2)}</div>
-            </div>
-          ) : (
-            <div className="py-8 text-center">Loading invoice…</div>
-          )}
-          <DialogFooter>
-            <Button onClick={() => window.print()}>Print Invoice</Button>
-            <Button onClick={() => { setDoneDialog(false); setInvoiceData(null); }}>Done</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Invoice Dialog */}
+      <InvoicePrintDialog
+        open={invoiceDialogOpen}
+        onOpenChange={v => {
+          setInvoiceDialogOpen(v);
+          if (!v) {
+            setSelectedSale(null);
+          }
+        }}
+        sale={selectedSale}
+      />
     </div>
   );
 }

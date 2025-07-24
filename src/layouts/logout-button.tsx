@@ -1,4 +1,4 @@
-import { useAuth } from "@/auth/auth-context";
+import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { LogOutIcon } from "lucide-react";
 

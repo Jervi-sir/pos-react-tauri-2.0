@@ -5,7 +5,6 @@ import { useTheme } from "@/components/theme-provider";
 export function ModeToggle() {
   const { theme, setTheme } = useTheme();
 
-  // Toggle between 'light' and 'dark'
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
   };
