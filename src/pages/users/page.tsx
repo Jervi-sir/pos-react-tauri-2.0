@@ -36,7 +36,8 @@ export default function UsersScreen() {
     setLoading(true);
     try {
       const res: any = await runSql(`
-        SELECT id, name, email, role FROM users
+        SELECT id, name, email, role FROM users 
+        WHERE role != 'admin' 
         ORDER BY id DESC
       `);
       setUsers(res.rows || []);

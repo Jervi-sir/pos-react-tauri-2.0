@@ -7,8 +7,8 @@
 [x] write a layout of a dashboard
 [x] login screen
   [x] login logics to backend
-[] register screen
-  [] register logics to backend
+[x] register screen
+  [x] register logics to backend
 [x] list my users
   [x] create new user
   [x] edit this user
@@ -25,14 +25,22 @@
   [x] delete category
   [x] edit category
 [x] apply analytics
-
-[] make theme functional
-[] maybe setup the change into the theme
-[] change into the brand name like dynamic
-
+[x] make theme functional
+[x] maybe setup the change into the theme
+[x] change into the brand name like dynamic
 [x] build
 [x] test
 [x] verify where db is located at, and where images are stored at
 [x] issue with images after build
-[] add export database
-[] add export of the list by date
+[x] add export database
+[x] add export of the list by date
+[x] make links active
+
+[x] protect some routes
+
+[] test export 
+  [] sales
+  [] invoices
+  [] stocks
+
+[] make the add product just adding quantity if it already exists, and make it suitable for the barcode scanning

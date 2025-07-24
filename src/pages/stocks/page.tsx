@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { runSql } from "@/runSql";
 import { fileToBase64 } from "@/lib/utils";
+import { ExportProductsDialog } from "./export-product-dialog";
+import { ExportDialog } from "@/components/export-dialog";
 
 type Product = {
   id: number;
@@ -172,7 +174,22 @@ export default function StockPage() {
     <div className="py-8">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Products</h2>
-        <Button onClick={() => openDialog()}>New Product</Button>
+        <div className="flex gap-2">
+          <Button onClick={() => openDialog()}>New Product</Button>
+          <ExportDialog
+            buildQuery={(range, s, e) =>
+              `SELECT p.*, c.name as category_name
+                FROM products p
+                LEFT JOIN categories c ON c.id = p.category_id
+                ${range === "between" && s && e ? `WHERE (date(p.created_at) >= '${s}' AND date(p.created_at) <= '${e}')
+                OR (date(p.updated_at) >= '${s}' AND date(p.updated_at) <= '${e}')` : ""}
+                ORDER BY p.created_at DESC`
+            }
+            filePrefix="products"
+            excludeFields={["image_base64"]}
+          />
+
+        </div>
       </div>
       {loading && <div>Loading...</div>}
       {error && <div className="mb-2 text-red-600">{error}</div>}

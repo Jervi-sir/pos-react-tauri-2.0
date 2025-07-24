@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { runSql } from "@/runSql";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export function ExportSalesDialog() {
+export function ExportInvoicesDialog() {
   const [open, setOpen] = useState(false);
   const [range, setRange] = useState<"all" | "between">("all");
   const [startDate, setStartDate] = useState<string>("");
@@ -37,14 +37,14 @@ export function ExportSalesDialog() {
     setLoading(true);
 
     let sql = `
-      SELECT s.id, s.total_price, s.created_at, u.name AS cashier
-      FROM sales s
-      LEFT JOIN users u ON s.sold_by = u.id
+      SELECT i.*, u.name as cashier
+      FROM invoices i
+      LEFT JOIN users u ON i.created_by = u.id
     `;
     if (range === "between" && startDate && endDate) {
-      sql += ` WHERE date(s.created_at) >= '${startDate}' AND date(s.created_at) <= '${endDate}'`;
+      sql += ` WHERE date(i.created_at) >= '${startDate}' AND date(i.created_at) <= '${endDate}'`;
     }
-    sql += " ORDER BY s.created_at DESC";
+    sql += " ORDER BY i.created_at DESC";
 
     const res: any = await runSql(sql);
     const rows = res.rows || [];
@@ -52,16 +52,16 @@ export function ExportSalesDialog() {
     if (format === "csv") {
       const csv = toCSV(rows);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      saveAs(blob, `sales_export_${Date.now()}.csv`);
+      saveAs(blob, `invoices_export_${Date.now()}.csv`);
     } else if (format === "excel") {
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Sales");
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Invoices");
       const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-      saveAs(new Blob([wbout], { type: "application/octet-stream" }), `sales_export_${Date.now()}.xlsx`);
+      saveAs(new Blob([wbout], { type: "application/octet-stream" }), `invoices_export_${Date.now()}.xlsx`);
     } else if (format === "json") {
       const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
-      saveAs(blob, `sales_export_${Date.now()}.json`);
+      saveAs(blob, `invoices_export_${Date.now()}.json`);
     }
     setLoading(false);
     setOpen(false);
@@ -70,11 +70,11 @@ export function ExportSalesDialog() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>Export Sales</Button>
+      <Button onClick={() => setOpen(true)} variant="outline">Export Invoices</Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Export Sales Data</DialogTitle>
+            <DialogTitle>Export Invoices</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -166,7 +166,6 @@ export function ExportSalesDialog() {
   );
 }
 
-// CSV helper
 function toCSV(rows: any[]) {
   if (!rows || rows.length === 0) return "";
   const keys = Object.keys(rows[0] ?? {});

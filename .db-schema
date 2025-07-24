@@ -1,5 +1,5 @@
 SELECT name FROM sqlite_master WHERE type='table';
-
+DELETE FROM store_info;
 
 CREATE TABLE users (
   id                  INTEGER PRIMARY KEY,
@@ -81,4 +81,17 @@ CREATE TABLE sale_items (
   updated_at TEXT NOT NULL,
   FOREIGN KEY(product_id) REFERENCES products(id),
   FOREIGN KEY(sale_id) REFERENCES sales(id)
+);
+
+CREATE TABLE IF NOT EXISTS store_info (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  address TEXT,
+  phone TEXT,
+  email TEXT,
+  tax_id TEXT,
+  currency TEXT DEFAULT 'DZD',
+  logo_base64 TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

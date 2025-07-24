@@ -77,5 +77,19 @@ export const schemaStatements = [
    SELECT 'Admin', 'gacembekhira@gmail.com', 'password', 'password', 'admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
    WHERE NOT EXISTS (
      SELECT 1 FROM users WHERE email = 'gacembekhira@gmail.com'
-   );`
+   );`,
+   `CREATE TABLE IF NOT EXISTS store_info (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    address TEXT,
+    phone TEXT,
+    email TEXT,
+    tax_id TEXT,
+    currency TEXT DEFAULT 'DZD',
+    logo_base64 TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );`,
+  `INSERT OR IGNORE INTO store_info (id, name, address, phone, email, tax_id, currency, logo_base64)
+  VALUES (1, '', '', '', '', '', 'DZD', '');`
 ];

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { runSql } from "@/runSql";
+import { ExportSalesDialog } from "./export-sales-dialog";
+import { ExportDialog } from "@/components/export-dialog";
 
 type Sale = {
   id: number;
@@ -78,7 +80,20 @@ export default function SalesListPage() {
 
   return (
     <div className="py-8">
-      <h2 className="text-2xl font-bold mb-4">Sales</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Sales</h2>
+        <ExportDialog
+          buildQuery={(range, s, e) =>
+            `SELECT s.id, s.total_price, s.created_at, u.name AS cashier
+            FROM sales s
+            LEFT JOIN users u ON s.sold_by = u.id
+            ${range === "between" && s && e ? `WHERE date(s.created_at) >= '${s}' AND date(s.created_at) <= '${e}'` : ""}
+            ORDER BY s.created_at DESC`
+          }
+          filePrefix="sales"
+          dialogTitle="Export Sales Data"
+        />
+      </div>
       {loading && <div>Loading...</div>}
       <div className="border rounded-xl shadow overflow-x-auto">
         <table className="min-w-full">

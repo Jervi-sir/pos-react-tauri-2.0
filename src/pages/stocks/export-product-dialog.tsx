@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { runSql } from "@/runSql";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export function ExportSalesDialog() {
+// Place this in StockPage, e.g. next to your "New Product" button:
+export function ExportProductsDialog() {
   const [open, setOpen] = useState(false);
   const [range, setRange] = useState<"all" | "between">("all");
   const [startDate, setStartDate] = useState<string>("");
@@ -37,31 +38,36 @@ export function ExportSalesDialog() {
     setLoading(true);
 
     let sql = `
-      SELECT s.id, s.total_price, s.created_at, u.name AS cashier
-      FROM sales s
-      LEFT JOIN users u ON s.sold_by = u.id
+      SELECT p.*, c.name as category_name
+      FROM products p
+      LEFT JOIN categories c ON c.id = p.category_id
     `;
     if (range === "between" && startDate && endDate) {
-      sql += ` WHERE date(s.created_at) >= '${startDate}' AND date(s.created_at) <= '${endDate}'`;
+      sql += ` WHERE (date(p.created_at) >= '${startDate}' AND date(p.created_at) <= '${endDate}')
+                OR (date(p.updated_at) >= '${startDate}' AND date(p.updated_at) <= '${endDate}')`;
     }
-    sql += " ORDER BY s.created_at DESC";
+    sql += " ORDER BY p.created_at DESC";
 
     const res: any = await runSql(sql);
     const rows = res.rows || [];
 
+    // Remove base64 image (if too big) for CSV/Excel, or include as you wish
+    // @ts-ignore
+    const exportRows = rows.map(({ image_base64, ...rest }) => rest);
+
     if (format === "csv") {
-      const csv = toCSV(rows);
+      const csv = toCSV(exportRows);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      saveAs(blob, `sales_export_${Date.now()}.csv`);
+      saveAs(blob, `products_export_${Date.now()}.csv`);
     } else if (format === "excel") {
-      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Sales");
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
       const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-      saveAs(new Blob([wbout], { type: "application/octet-stream" }), `sales_export_${Date.now()}.xlsx`);
+      saveAs(new Blob([wbout], { type: "application/octet-stream" }), `products_export_${Date.now()}.xlsx`);
     } else if (format === "json") {
       const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
-      saveAs(blob, `sales_export_${Date.now()}.json`);
+      saveAs(blob, `products_export_${Date.now()}.json`);
     }
     setLoading(false);
     setOpen(false);
@@ -70,11 +76,11 @@ export function ExportSalesDialog() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>Export Sales</Button>
+      <Button onClick={() => setOpen(true)} variant="outline">Export Products</Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Export Sales Data</DialogTitle>
+            <DialogTitle>Export Products</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -151,6 +157,7 @@ export function ExportSalesDialog() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Style for date input fields for dark/light themes */}
       <style>{`
         .date-input {
           background: var(--background, #fff);
@@ -166,7 +173,6 @@ export function ExportSalesDialog() {
   );
 }
 
-// CSV helper
 function toCSV(rows: any[]) {
   if (!rows || rows.length === 0) return "";
   const keys = Object.keys(rows[0] ?? {});

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { runSql } from "@/runSql";
+import { ExportInvoicesDialog } from "./export-invoice-dialog";
+import { ExportDialog } from "@/components/export-dialog";
 
 type Invoice = {
   id: number;
@@ -105,7 +107,20 @@ export default function InvoicesPage() {
 
   return (
     <div className="py-8">
-      <h2 className="text-2xl font-bold mb-4">Invoices</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Invoices</h2>
+        <ExportDialog
+          buildQuery={(range, s, e) =>
+            `SELECT i.*, u.name as cashier
+            FROM invoices i
+            LEFT JOIN users u ON i.created_by = u.id
+            ${range === "between" && s && e ? `WHERE date(i.created_at) >= '${s}' AND date(i.created_at) <= '${e}'` : ""}
+            ORDER BY i.created_at DESC`
+          }
+          filePrefix="invoices"
+          dialogTitle="Export Invoices"
+        />
+      </div>
       {loading && <div>Loading...</div>}
       <div className="border rounded-xl shadow overflow-x-auto">
         <table className="min-w-full">

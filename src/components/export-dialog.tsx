@@ -1,12 +1,28 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { runSql } from "@/runSql";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export function ExportSalesDialog() {
+type ExportDialogProps = {
+  buildQuery: (range: "all" | "between", startDate: string, endDate: string) => string;
+  filePrefix: string;
+  excludeFields?: string[];
+  buttonLabel?: string;
+  dialogTitle?: string;
+  exportTransform?: (rows: any[]) => any[];
+};
+
+export function ExportDialog({
+  buildQuery,
+  filePrefix,
+  excludeFields = [],
+  buttonLabel = "Export",
+  dialogTitle = "Export Data",
+  exportTransform
+}: ExportDialogProps) {
   const [open, setOpen] = useState(false);
   const [range, setRange] = useState<"all" | "between">("all");
   const [startDate, setStartDate] = useState<string>("");
@@ -36,32 +52,37 @@ export function ExportSalesDialog() {
 
     setLoading(true);
 
-    let sql = `
-      SELECT s.id, s.total_price, s.created_at, u.name AS cashier
-      FROM sales s
-      LEFT JOIN users u ON s.sold_by = u.id
-    `;
-    if (range === "between" && startDate && endDate) {
-      sql += ` WHERE date(s.created_at) >= '${startDate}' AND date(s.created_at) <= '${endDate}'`;
-    }
-    sql += " ORDER BY s.created_at DESC";
-
+    const sql = buildQuery(range, startDate, endDate);
     const res: any = await runSql(sql);
-    const rows = res.rows || [];
+    let rows = res.rows || [];
+
+    // Remove excluded fields
+    if (excludeFields.length) {
+      rows = rows.map(row => {
+        const copy = { ...row };
+        excludeFields.forEach(f => delete copy[f]);
+        return copy;
+      });
+    }
+
+    // Optional: transform rows before export (custom logic)
+    if (exportTransform) {
+      rows = exportTransform(rows);
+    }
 
     if (format === "csv") {
       const csv = toCSV(rows);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      saveAs(blob, `sales_export_${Date.now()}.csv`);
+      saveAs(blob, `${filePrefix}_export_${Date.now()}.csv`);
     } else if (format === "excel") {
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Sales");
+      XLSX.utils.book_append_sheet(workbook, worksheet, dialogTitle);
       const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-      saveAs(new Blob([wbout], { type: "application/octet-stream" }), `sales_export_${Date.now()}.xlsx`);
+      saveAs(new Blob([wbout], { type: "application/octet-stream" }), `${filePrefix}_export_${Date.now()}.xlsx`);
     } else if (format === "json") {
       const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
-      saveAs(blob, `sales_export_${Date.now()}.json`);
+      saveAs(blob, `${filePrefix}_export_${Date.now()}.json`);
     }
     setLoading(false);
     setOpen(false);
@@ -70,11 +91,11 @@ export function ExportSalesDialog() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>Export Sales</Button>
+      <Button onClick={() => setOpen(true)} variant="outline">{buttonLabel}</Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Export Sales Data</DialogTitle>
+            <DialogTitle>{dialogTitle}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -166,7 +187,6 @@ export function ExportSalesDialog() {
   );
 }
 
-// CSV helper
 function toCSV(rows: any[]) {
   if (!rows || rows.length === 0) return "";
   const keys = Object.keys(rows[0] ?? {});

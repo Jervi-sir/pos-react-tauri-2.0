@@ -19,6 +19,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { ModeToggle } from '@/components/mode-toggle';
 import { useAuth } from '@/auth/auth-context';
 import { LoginPage } from '@/pages/auth/login';
+import { StoreInfoProvider } from './store-info-context';
 
 const AppLayout = () => {
   const { user, loading } = useAuth();
@@ -26,7 +27,7 @@ const AppLayout = () => {
   if (!user) return <LoginPage />;
 
   return (
-    <>
+    <StoreInfoProvider>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
@@ -38,19 +39,6 @@ const AppLayout = () => {
                 orientation="vertical"
                 className="mr-2 data-[orientation=vertical]:h-4"
               />
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem className="hidden md:block">
-                    <BreadcrumbLink href="#">
-                      Building Your Application
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className="hidden md:block" />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>Data Fetching</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
             </div>
           </header>
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
@@ -59,7 +47,7 @@ const AppLayout = () => {
         </SidebarInset>
       </SidebarProvider>
       <Toaster />
-    </>
+    </StoreInfoProvider>
   );
 };
 

@@ -16,6 +16,7 @@ import { AuthProvider } from './auth/auth-context';
 import { ThemeProvider } from './components/theme-provider';
 import AnalyticsPage from './pages/analytics/page';
 import { initDatabase } from './lib/init-database';
+import SettingsPage from './pages/settings/page';
 
 (async () => {
   await initDatabase();
@@ -34,6 +35,7 @@ const router = createBrowserRouter([
       { path: '/users', element: <UsersPage /> },
       { path: '/analytics', element: <AnalyticsPage /> },
       { path: '/sql', element: <SqlQueriesPage /> },
+      { path: '/settings', element: <SettingsPage /> },
     ],
   },
 ]);
