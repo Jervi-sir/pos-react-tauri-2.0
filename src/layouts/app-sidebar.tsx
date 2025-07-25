@@ -34,12 +34,13 @@ import { useTheme } from '@/components/theme-provider';
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, logout } = useAuth();
   const { storeInfo } = useStoreInfo();
-  const { sidebarVariant } = useTheme()
+  const { sidebarVariant } = useTheme();
 
   // Define navigation items with canAccess as an array of roles
   const data = [
-    { name: 'Dashboard', url: '/dashboard', icon: PanelBottom, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Dashboard', url: '/', icon: PanelBottom, canAccess: ['owner', 'admin', 'cashier'] },
     { name: 'Stocks', url: '/stocks', icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Product', url: '/products', icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
   ];
 
   const salesData = [
@@ -52,11 +53,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     { name: 'Users', url: '/users', icon: Map, canAccess: ['admin'] },
     { name: 'Categories', url: '/categories', icon: Map, canAccess: ['admin'] },
     { name: 'Sql Queries', url: '/sql', icon: TerminalIcon, canAccess: ['admin'] },
+    { name: 'Sql Explorer', url: '/sql-explorer', icon: TerminalIcon, canAccess: ['admin'] },
   ];
-
-  // const settingData = [
-  //   { name: 'Settings', url: '/settings', icon: Settings, canAccess: ['owner', 'admin'] },
-  // ]
 
   return (
     <Sidebar variant={sidebarVariant} collapsible="icon" {...props}>
@@ -89,7 +87,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavGroup title="Main" data={data} userRole={user?.role} />
         <NavGroup title="Sales" data={salesData} userRole={user?.role} />
         <NavGroup title="Admin" data={adminData} userRole={user?.role} />
-        {/* <NavGroup data={settingData} userRole={user?.role} /> */}
         <SidebarGroup className="mt-auto">
           <SidebarMenu>
             <SidebarMenuItem>
@@ -122,7 +119,7 @@ function NavGroup({
     canAccess: string[];
   }[];
   userRole: string | undefined;
-  title?: string
+  title?: string;
 }) {
   const location = useLocation();
 
@@ -137,19 +134,27 @@ function NavGroup({
   // Create a reactive data array with isActive state
   const reactiveData = React.useMemo(
     () =>
-      filteredData.map((item) => ({
-        ...item,
-        isActive: location.pathname === item.url,
-      })),
+      filteredData.map((item) => {
+        const cleanUrl = item.url.replace(/\/+$/, '');
+        // Special case for root path: exact match only
+        const isActive = cleanUrl === ''
+          ? location.pathname === '/' || location.pathname === ''
+          : location.pathname.startsWith(cleanUrl);
+        return { ...item, isActive };
+      }),
     [filteredData, location.pathname]
   );
 
   return (
     <SidebarGroup className='py-0'>
-      { title && <SidebarGroupLabel>{ title }</SidebarGroupLabel>}
+      {title && <SidebarGroupLabel>{title}</SidebarGroupLabel>}
       <SidebarMenu>
         {reactiveData.map((item) => {
-          const isActive = location.pathname === item.url;
+          const cleanUrl = item.url.replace(/\/+$/, '');
+          // Apply same active logic for styling
+          const isActive = cleanUrl === ''
+            ? location.pathname === '/' || location.pathname === ''
+            : location.pathname.startsWith(cleanUrl);
           return (
             <SidebarMenuItem key={item.name}>
               <SidebarMenuButton asChild>

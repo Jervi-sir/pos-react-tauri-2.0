@@ -12,15 +12,16 @@ import { ModeToggle } from '@/components/mode-toggle';
 import { useAuth } from '@/context/auth-context';
 import { LoginPage } from '@/pages/auth/login';
 import { StoreInfoProvider } from '../context/store-info-context';
-import { Loader, Loader2, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import LoadingScreen from './loading-screen';
 
 const AppLayout = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
   const isActive = location.pathname === "/settings";
 
-  if (loading) return <div className="h-[100vh] w-[100vw] flex justify-center items-center"><Loader2 className='animate-spin' /></div>;
+  if (loading) return <LoadingScreen />;
   if (!user) return <LoginPage />;
 
   return (

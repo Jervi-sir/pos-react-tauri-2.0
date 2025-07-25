@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { runSql } from "@/runSql";
+import LoadingScreen from "@/layouts/loading-screen";
 
 type StoreInfo = {
   id: number;
@@ -106,7 +107,7 @@ export const StoreInfoProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     saveToStorage(updated);
   };
 
-  if (loading) return <div>Loading store info...</div>;
+  if (loading) return <LoadingScreen />;
 
   return (
     <StoreInfoContext.Provider value={{ storeInfo, updateStoreInfo }}>

@@ -26,6 +26,9 @@ type InvoicePrintDialogProps = {
   invoice?: InvoiceType | null;
 };
 
+// Simple escaping function for SQLite string values
+const escapeSqlString = (value: string) => `'${value.replace(/'/g, "''")}'`;
+
 export function InvoicePrintDialog({ open, onOpenChange, invoice }: InvoicePrintDialogProps) {
   const [items, setItems] = useState<SaleProduct[]>([]);
   const [loading, setLoading] = useState(false);
@@ -43,11 +46,6 @@ export function InvoicePrintDialog({ open, onOpenChange, invoice }: InvoicePrint
       try {
         let saleId = invoice.sale_id;
 
-        // Validate invoice.id
-        if (!Number.isInteger(invoice.id) || invoice.id <= 0) {
-          throw new Error("Invalid invoice ID.");
-        }
-
         if (!saleId) {
           // Fallback: fetch sale_id from invoices table
           const invoiceQuery = `SELECT sale_id FROM invoices WHERE id = ${invoice.id} LIMIT 1`;
@@ -55,7 +53,7 @@ export function InvoicePrintDialog({ open, onOpenChange, invoice }: InvoicePrint
           saleId = invoiceRes.rows?.[0]?.sale_id;
         }
 
-        if (!saleId || !Number.isInteger(saleId) || saleId <= 0) {
+        if (!saleId) {
           setItems([]);
           setLoading(false);
           return;

@@ -7,16 +7,10 @@ pub fn get_connection() -> Result<Connection> {
         .expect("Could not get user's document dir")
         .join("pos");
 
-    // Ensure directory exists
     std::fs::create_dir_all(&db_path).expect("Failed to create pos directory");
-
     db_path.push("app_data.sqlite3");
 
-    Connection::open(db_path)
+    let conn = Connection::open(db_path)?;
+    conn.execute("PRAGMA foreign_keys = ON;", [])?; // Enable foreign keys
+    Ok(conn)
 }
-
-// use rusqlite::{Connection, Result};
-
-// pub fn get_connection() -> Result<Connection> {
-//     Connection::open("../app_data.sqlite3")
-// }

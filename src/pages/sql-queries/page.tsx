@@ -16,7 +16,7 @@ function SqlQueriesPage() {
   };
 
   return (
-    <div style={{ padding: 24 }}>
+    <div >
       <h1>Run SQLite Query</h1>
       <div className="flex flex-col items-start">
         <textarea
@@ -33,6 +33,10 @@ function SqlQueriesPage() {
         <pre className="border rounded-xl p-4" >
           {JSON.stringify(result, null, 2)}
         </pre>
+        <div>
+          <p>SELECT name FROM sqlite_master WHERE type='table';</p>
+          <p>DELETE FROM store_info;</p>
+        </div>
       </div>
     </div>
   );

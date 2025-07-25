@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { runSql } from "@/runSql";
+import { PaginationSection } from "@/components/pagination-section";
 
 type User = {
   id: number;
@@ -19,38 +20,51 @@ const ROLE_OPTIONS = [
   { value: "cashier", label: "Cashier" },
 ];
 
+const PAGE_SIZE = 10; // Number of users per page
+
 export default function UsersScreen() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // Dialog states
+  const [currentPage, setCurrentPage] = useState(1); // Pagination state
+  const [totalCount, setTotalCount] = useState(0); // Total number of users
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
-  const [userPassword, setUserPassword] = useState(""); // Only for create
+  const [userPassword, setUserPassword] = useState("");
   const [userRole, setUserRole] = useState<"owner" | "admin" | "cashier">("cashier");
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch users
+  // Fetch users with pagination
   const fetchUsers = async () => {
     setLoading(true);
     try {
+      const offset = (currentPage - 1) * PAGE_SIZE;
+
+      // Fetch paginated users
       const res: any = await runSql(`
         SELECT id, name, email, role, password FROM users 
         WHERE role != 'admin' 
         ORDER BY id DESC
+        LIMIT ${PAGE_SIZE} OFFSET ${offset}
       `);
       setUsers(res.rows || []);
+
+      // Fetch total count for pagination
+      const countRes: any = await runSql(`
+        SELECT COUNT(*) as cnt FROM users WHERE role != 'admin'
+      `);
+      setTotalCount(countRes.rows?.[0]?.cnt || 0);
     } catch (e: any) {
       setError(e?.message ?? String(e));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [currentPage]); // Refetch when page changes
 
   // Open dialog for create/edit
   const openDialog = (user?: User) => {
@@ -65,7 +79,7 @@ export default function UsersScreen() {
 
   // Create or edit user
   const handleSave = async () => {
-    if (!userName.trim() || !userEmail.trim() || !userPassword.trim() || !userRole) {
+    if (!userName.trim() || !userEmail.trim() || (!editId && !userPassword.trim()) || !userRole) {
       setError("All fields are required");
       return;
     }
@@ -75,7 +89,7 @@ export default function UsersScreen() {
           UPDATE users SET 
             name = '${userName.replace(/'/g, "''")}', 
             email = '${userEmail.replace(/'/g, "''")}',
-            password = '${userPassword.replace(/'/g, "''")}',
+            ${userPassword ? `password = '${userPassword.replace(/'/g, "''")}',` : ""}
             role = '${userRole}',
             updated_at = '${new Date().toISOString()}'
           WHERE id = ${editId}
@@ -101,6 +115,7 @@ export default function UsersScreen() {
       setUserRole("cashier");
       setEditId(null);
       setError(null);
+      setCurrentPage(1); // Reset to first page after save
       await fetchUsers();
     } catch (e: any) {
       setError(e?.message ?? String(e));
@@ -112,11 +127,14 @@ export default function UsersScreen() {
     if (!window.confirm("Delete this user?")) return;
     try {
       await runSql(`DELETE FROM users WHERE id = ${id}`);
+      setCurrentPage(1); // Reset to first page after delete
       await fetchUsers();
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
   };
+
+  const pageCount = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
     <div>
@@ -124,7 +142,7 @@ export default function UsersScreen() {
         <h2 className="text-2xl font-bold">Users</h2>
         <Button onClick={() => openDialog()}>New User</Button>
       </div>
-      {loading && <div>Loading...</div>}
+      {/* {loading && <div>Loading...</div>} */}
       {error && <div className="mb-2 text-red-600">{error}</div>}
       <div className="border rounded-xl shadow overflow-x-auto">
         <table className="min-w-full">
@@ -183,6 +201,16 @@ export default function UsersScreen() {
           </tbody>
         </table>
       </div>
+      {/* Pagination */}
+      {pageCount > 1
+        &&
+        <PaginationSection
+          page={currentPage}
+          pageCount={pageCount}
+          setPage={setCurrentPage}
+          maxPagesToShow={5}
+        />
+      }
       {/* Dialog for Create/Edit */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -204,7 +232,7 @@ export default function UsersScreen() {
             <Input
               value={userPassword}
               onChange={e => setUserPassword(e.target.value)}
-              placeholder="Password"
+              placeholder={editId ? "New Password (optional)" : "Password"}
               type="password"
             />
             <Select

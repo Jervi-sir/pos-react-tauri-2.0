@@ -4,6 +4,7 @@ import { runSql } from "@/runSql";
 import { ExportDialog } from "@/components/export-dialog";
 import { InvoicePrintDialog } from "./invoice-print-dialog";
 import { PrinterIcon } from "lucide-react";
+import { PaginationSection } from "@/components/pagination-section";
 
 type Sale = {
   id: number;
@@ -12,7 +13,15 @@ type Sale = {
   cashier: string;
 };
 
-type SaleItem = {
+type Invoice = {
+  id: number;
+  sale_id: number;
+  amount: number;
+  created_at: string;
+  cashier: string;
+};
+
+type SaleProduct = {
   id: number;
   product_id: number;
   sale_id: number;
@@ -27,51 +36,108 @@ type SaleItem = {
 
 const PAGE_SIZE = 10;
 
+// Simple escaping function for SQLite string values
+const escapeSqlString = (value: string) => `'${value.replace(/'/g, "''")}'`;
+
 export default function SalesListPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [expandedSale, setExpandedSale] = useState<number | null>(null);
-  const [saleItems, setSaleItems] = useState<Record<number, SaleItem[]>>({});
+  const [saleProducts, setSaleProducts] = useState<Record<number, SaleProduct[]>>({});
   const [page, setPage] = useState(1);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   // Fetch sales
   const fetchSales = async () => {
     setLoading(true);
     const offset = (page - 1) * PAGE_SIZE;
-    const res: any = await runSql(`
+    const salesQuery = `
       SELECT s.id, s.total_price, s.created_at, u.name AS cashier
       FROM sales s
-      LEFT JOIN users u ON s.sold_by = u.id
+      LEFT JOIN users u ON s.user_id = u.id
       ORDER BY s.created_at DESC
       LIMIT ${PAGE_SIZE} OFFSET ${offset}
-    `);
-    setSales(res.rows || []);
-    // Count
-    const countRes: any = await runSql("SELECT COUNT(*) as cnt FROM sales");
-    setTotalCount(countRes.rows?.[0]?.cnt || 0);
-    setLoading(false);
+    `;
+    try {
+      const res: any = await runSql(salesQuery);
+      setSales(res.rows || []);
+      // Count
+      const countRes: any = await runSql("SELECT COUNT(*) as cnt FROM sales");
+      setTotalCount(countRes.rows?.[0]?.cnt || 0);
+    } catch (e: any) {
+      console.error("Error fetching sales:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Fetch sale items for a sale
-  const fetchSaleItems = async (saleId: number) => {
-    if (saleItems[saleId]) {
+  // Fetch sale products for a sale
+  const fetchSaleProducts = async (saleId: number) => {
+    if (!Number.isInteger(saleId) || saleId <= 0) {
+      console.error("Invalid sale ID:", saleId);
+      return;
+    }
+    if (saleProducts[saleId]) {
       setExpandedSale(expandedSale === saleId ? null : saleId);
       return; // Already loaded
     }
-    const res: any = await runSql(`
-      SELECT si.*, p.name as product_name, p.barcode
-      FROM sale_items si
-      LEFT JOIN products p ON si.product_id = p.id
-      WHERE si.sale_id = ${saleId}
-    `);
-    setSaleItems(prev => ({
-      ...prev,
-      [saleId]: res.rows || []
-    }));
-    setExpandedSale(saleId);
+    const itemsQuery = `
+      SELECT sp.id, sp.product_id, sp.sale_id, sp.quantity, sp.price_unit, sp.created_at, sp.updated_at, p.name as product_name, p.barcode
+      FROM sale_products sp
+      LEFT JOIN products p ON sp.product_id = p.id
+      WHERE sp.sale_id = ${saleId}
+    `;
+    try {
+      const res: any = await runSql(itemsQuery);
+      setSaleProducts((prev) => ({
+        ...prev,
+        [saleId]: res.rows.map((item: any) => ({
+          ...item,
+          subtotal: item.quantity * item.price_unit, // Calculate subtotal
+        })) || [],
+      }));
+      setExpandedSale(saleId);
+    } catch (e: any) {
+      console.error("Error fetching sale products:", e);
+      setSaleProducts((prev) => ({
+        ...prev,
+        [saleId]: [],
+      }));
+    }
+  };
+
+  // Fetch invoice data for a sale
+  const fetchInvoiceForSale = async (sale: Sale) => {
+    if (!Number.isInteger(sale.id) || sale.id <= 0) {
+      console.error("Invalid sale ID:", sale.id);
+      return;
+    }
+    const invoiceQuery = `
+      SELECT i.id, i.sale_id, i.amount, i.created_at, u.name AS cashier
+      FROM invoices i
+      LEFT JOIN users u ON i.user_id = u.id
+      WHERE i.sale_id = ${sale.id} LIMIT 1
+    `;
+    try {
+      const res: any = await runSql(invoiceQuery);
+      const invoice = res.rows?.[0];
+      if (invoice) {
+        setSelectedInvoice({
+          id: invoice.id,
+          sale_id: invoice.sale_id,
+          amount: invoice.amount,
+          created_at: invoice.created_at,
+          cashier: invoice.cashier || "-",
+        });
+        setInvoiceDialogOpen(true);
+      } else {
+        console.error("No invoice found for sale ID:", sale.id);
+      }
+    } catch (e: any) {
+      console.error("Error fetching invoice:", e);
+    }
   };
 
   useEffect(() => {
@@ -86,18 +152,22 @@ export default function SalesListPage() {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Sales</h2>
         <ExportDialog
-          buildQuery={(range, s, e) =>
-            `SELECT s.id, s.total_price, s.created_at, u.name AS cashier
-            FROM sales s
-            LEFT JOIN users u ON s.sold_by = u.id
-            ${range === "between" && s && e ? `WHERE date(s.created_at) >= '${s}' AND date(s.created_at) <= '${e}'` : ""}
-            ORDER BY s.created_at DESC`
-          }
+          buildQuery={(range, s, e) => {
+            const startDate = s ? escapeSqlString(s) : null;
+            const endDate = e ? escapeSqlString(e) : null;
+            return `
+              SELECT s.id, s.total_price, s.created_at, u.name AS cashier
+              FROM sales s
+              LEFT JOIN users u ON s.user_id = u.id
+              ${range === "between" && startDate && endDate ? `WHERE date(s.created_at) >= ${startDate} AND date(s.created_at) <= ${endDate}` : ""}
+              ORDER BY s.created_at DESC
+            `;
+          }}
           filePrefix="sales"
           dialogTitle="Export Sales Data"
         />
       </div>
-      {loading && <div>Loading...</div>}
+      {/* {loading && <div>Loading...</div>} */}
       <div className="border rounded-xl shadow overflow-x-auto">
         <table className="min-w-full">
           <thead>
@@ -115,7 +185,7 @@ export default function SalesListPage() {
                 <td colSpan={5} className="text-center py-6">No sales</td>
               </tr>
             )}
-            {sales.map(sale => (
+            {sales.map((sale) => (
               <React.Fragment key={sale.id}>
                 <tr className="border-t">
                   <td className="px-4 py-2">{sale.id}</td>
@@ -126,27 +196,26 @@ export default function SalesListPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => fetchSaleItems(sale.id)}
+                      onClick={() => fetchSaleProducts(sale.id)}
                     >
                       {expandedSale === sale.id ? "Hide" : "Show"}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => { setSelectedSale(sale); setInvoiceDialogOpen(true); }}
+                      onClick={() => fetchInvoiceForSale(sale)}
                     >
                       <PrinterIcon />
                     </Button>
-
                   </td>
                 </tr>
-                {/* Expandable sale items */}
+                {/* Expandable sale products */}
                 {expandedSale === sale.id && (
                   <tr>
                     <td colSpan={5} className="px-8 py-4">
                       <div>
                         <div className="font-semibold mb-2">Items</div>
-                        {saleItems[sale.id] && saleItems[sale.id].length > 0 ? (
+                        {saleProducts[sale.id] && saleProducts[sale.id].length > 0 ? (
                           <table className="min-w-full">
                             <thead>
                               <tr>
@@ -158,7 +227,7 @@ export default function SalesListPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {saleItems[sale.id].map(item => (
+                              {saleProducts[sale.id].map((item) => (
                                 <tr key={item.id}>
                                   <td>{item.barcode}</td>
                                   <td>{item.product_name}</td>
@@ -184,30 +253,19 @@ export default function SalesListPage() {
 
       <InvoicePrintDialog
         open={invoiceDialogOpen}
-        onOpenChange={v => setInvoiceDialogOpen(v)}
-        sale={selectedSale}
+        onOpenChange={(v) => {
+          setInvoiceDialogOpen(v);
+          if (!v) setSelectedInvoice(null);
+        }}
+        invoice={selectedInvoice}
       />
       {/* Pagination */}
-      {pageCount > 1 && (
-        <div className="flex gap-2 justify-center my-4">
-          <Button size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
-            Prev
-          </Button>
-          {Array.from({ length: pageCount }, (_, i) => (
-            <Button
-              key={i + 1}
-              size="sm"
-              variant={page === i + 1 ? "default" : "outline"}
-              onClick={() => setPage(i + 1)}
-            >
-              {i + 1}
-            </Button>
-          ))}
-          <Button size="sm" disabled={page === pageCount} onClick={() => setPage((p) => p + 1)}>
-            Next
-          </Button>
-        </div>
-      )}
+      <PaginationSection
+        page={page}
+        pageCount={pageCount}
+        setPage={setPage}
+        maxPagesToShow={5}
+      />
     </div>
   );
 }

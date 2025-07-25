@@ -1,66 +1,75 @@
-import React, { createContext, useContext, useEffect } from "react";
+import React, { createContext, useContext, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { runSql } from "@/runSql";
-
-type Product = { id: number; name: string; stock_left?: number };
 
 type LowStockContextType = {};
 
 const LowStockContext = createContext<LowStockContextType>({});
 
 // ----- MODULE-LEVEL SHARED STATE -----
-const alertedSet = new Set<number>();
+let lastCount = 0;
 
-// ----- EXPORTED FUNCTION (no args needed) -----
+// ----- EXPORTED FUNCTION -----
 export async function checkLowStock() {
-  const res: any = await runSql(`
-    SELECT
-      p.id,
-      p.name,
-      (
-        COALESCE((SELECT SUM(quantity) FROM stock_entries WHERE product_id = p.id), 0)
-        -
-        COALESCE((SELECT SUM(quantity) FROM sale_items WHERE product_id = p.id), 0)
-      ) AS stock_left
-    FROM products p
-    WHERE (
-      COALESCE((SELECT SUM(quantity) FROM stock_entries WHERE product_id = p.id), 0)
-      -
-      COALESCE((SELECT SUM(quantity) FROM sale_items WHERE product_id = p.id), 0)
-    ) <= 5
-  `);
+  const start = performance.now();
+  console.log("checkLowStock started");
+  const query = `
+    SELECT COUNT(*) as low_stock_count
+    FROM (
+        SELECT product_id
+        FROM (
+            SELECT product_id, quantity
+            FROM stock_entries
+            UNION ALL
+            SELECT product_id, -quantity
+            FROM sale_products
+        ) s
+        GROUP BY product_id
+        HAVING SUM(quantity) <= 5
+    ) low_stock;
+  `;
+  try {
+    const res: any = await runSql(query);
+    const count = res.rows?.[0]?.low_stock_count || 0;
 
-  const products: Product[] = res.rows || [];
-
-  products.forEach((prod) => {
-    if (typeof prod.stock_left === "number" && prod.stock_left <= 5) {
-      if (!alertedSet.has(prod.id)) {
-        toast(`Low Stock: ${prod.name}`, {
-          description: `Only ${prod.stock_left} left in stock.`,
-          duration: 3000,
-        });
-        alertedSet.add(prod.id);
-      }
-    } else {
-      alertedSet.delete(prod.id);
+    if (count > 0 && count !== lastCount) {
+      toast(`Low Stock Alert`, {
+        description: `${count} product${count === 1 ? '' : 's'} ha${count === 1 ? 's' : 've'} low stock (<= 5). Please verify.`,
+        duration: 3000,
+      });
+      lastCount = count;
+    } else if (count === 0) {
+      lastCount = 0;
     }
-  });
 
-  // Remove alerted ids that are no longer low-stock
-  alertedSet.forEach((id) => {
-    if (!products.find((p) => p.id === id)) {
-      alertedSet.delete(id);
-    }
-  });
+    console.log(`checkLowStock completed in ${performance.now() - start} ms`);
+  } catch (e: any) {
+    console.error("Error in checkLowStock:", e);
+  }
 }
 
-// Provider just calls the exported function on a timer
+// Provider
 export function LowStockProvider({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    checkLowStock(); // Immediate run
-    const interval = setInterval(checkLowStock, 600_000); // 10 min
-    return () => clearInterval(interval);
+  const isRunning = useRef(false);
+
+  const runCheckLowStock = useCallback(async () => {
+    if (isRunning.current) {
+      console.log("checkLowStock already running, skipping");
+      return;
+    }
+    isRunning.current = true;
+    try {
+      await checkLowStock();
+    } finally {
+      isRunning.current = false;
+    }
   }, []);
+
+  useEffect(() => {
+    runCheckLowStock(); // Immediate run
+    const interval = setInterval(runCheckLowStock, 600_000); // 10 min
+    return () => clearInterval(interval);
+  }, [runCheckLowStock]);
 
   return (
     <LowStockContext.Provider value={{}}>

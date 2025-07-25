@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { runSql } from "@/runSql";
+import { PaginationSection } from "@/components/pagination-section";
 
 type Category = {
   id: number;
@@ -11,11 +12,13 @@ type Category = {
   product_count: number;
 };
 
+const PAGE_SIZE = 10;
+
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // Dialog states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [categoryName, setCategoryName] = useState("");
@@ -25,23 +28,32 @@ export default function CategoriesPage() {
   const fetchCategories = async () => {
     setLoading(true);
     try {
+      const offset = (currentPage - 1) * PAGE_SIZE;
       const res: any = await runSql(`
         SELECT c.id, c.name, c.created_at, COUNT(p.id) as product_count
         FROM categories c
         LEFT JOIN products p ON c.id = p.category_id
         GROUP BY c.id, c.name, c.created_at
         ORDER BY c.created_at DESC
+        LIMIT ${PAGE_SIZE} OFFSET ${offset}
       `);
       setCategories(res.rows || []);
+
+      // Fetch total count
+      const countRes: any = await runSql(`
+        SELECT COUNT(*) as cnt FROM categories
+      `);
+      setTotalCount(countRes.rows?.[0]?.cnt || 0);
     } catch (e: any) {
       setError(e?.message ?? String(e));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [currentPage]);
 
   // Create or Edit
   const handleSave = async () => {
@@ -65,6 +77,7 @@ export default function CategoriesPage() {
       setCategoryName("");
       setEditId(null);
       setError(null);
+      setCurrentPage(1); // Reset to first page
       await fetchCategories();
     } catch (e: any) {
       setError(e?.message ?? String(e));
@@ -75,6 +88,7 @@ export default function CategoriesPage() {
   const handleDelete = async (id: number) => {
     try {
       await runSql(`DELETE FROM categories WHERE id = ${id}`);
+      setCurrentPage(1); // Reset to first page
       await fetchCategories();
     } catch (e: any) {
       setError(e?.message ?? String(e));
@@ -89,6 +103,8 @@ export default function CategoriesPage() {
     setError(null);
   };
 
+  const pageCount = Math.ceil(totalCount / PAGE_SIZE);
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -101,7 +117,7 @@ export default function CategoriesPage() {
           {error}
         </div>
       )}
-      <div className="border rounded-xl shadow overflow-x-auto">
+      <div className="border rounded-lg shadow overflow-x-auto">
         <table className="min-w-full">
           <thead>
             <tr className="">
@@ -139,7 +155,12 @@ export default function CategoriesPage() {
           </tbody>
         </table>
       </div>
-
+      <PaginationSection
+        page={currentPage}
+        pageCount={pageCount}
+        setPage={setCurrentPage}
+        maxPagesToShow={5}
+      />
       {/* Dialog for Create/Edit */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

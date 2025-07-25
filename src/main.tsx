@@ -16,8 +16,10 @@ import { ThemeProvider } from './components/theme-provider';
 import { initDatabase } from './lib/init-database';
 import SettingsPage from './pages/settings/page';
 import DashboardPage from './pages/dashboard/page';
-import { PosProvider } from './context/pos-context';
+import { PosProvider } from './pages/pos/pos-context';
 import { LowStockProvider } from './context/low-stock-context';
+import SchemaExplorer from './pages/sql-queries/schema-explorer';
+import SingleProductPage from './pages/product/page';
 
 (async () => {
   await initDatabase();
@@ -28,7 +30,6 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { path: '/', element: <DashboardPage /> },
-      { path: '/dashboard', element: <DashboardPage /> },
       { path: '/categories', element: <CategoriesPage /> },
       { path: '/invoices', element: <InvoicesPage /> },
       { path: '/sales', element: <SalesListPage /> },
@@ -36,7 +37,9 @@ const router = createBrowserRouter([
       { path: '/stocks', element: <StocksPage /> },
       { path: '/users', element: <UsersPage /> },
       { path: '/sql', element: <SqlQueriesPage /> },
+      { path: '/sql-explorer', element: <SchemaExplorer /> },
       { path: '/settings', element: <SettingsPage /> },
+      { path: '/products/:id?', element: <SingleProductPage /> },
     ],
   },
 ]);
