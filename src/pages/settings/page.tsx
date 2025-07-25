@@ -3,7 +3,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ModeToggle } from "@/components/mode-toggle";
 import { useStoreInfo } from "@/context/store-info-context";
 import { ThemeSettings } from "./theme-settings";
 

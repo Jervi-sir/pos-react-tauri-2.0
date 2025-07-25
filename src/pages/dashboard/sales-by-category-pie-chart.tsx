@@ -1,19 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pie, PieChart } from "recharts";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, } from "@/components/ui/card";
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, } from "@/components/ui/chart";
 import { runSql } from "@/runSql";
 
 type ChartData = {
@@ -38,9 +26,9 @@ export function SalesByCategoryPieChart() {
       try {
         // Fetch currency from store_info
         const storeQuery = `SELECT currency FROM store_info WHERE id = 1`;
+        // @ts-ignore
         const storeRes: { rows: { currency: string }[] } = await runSql(storeQuery);
         setCurrency(storeRes.rows?.[0]?.currency || "DZD");
-
         // Fetch sales by category
         const query = `
           SELECT c.name as category, SUM(sp.quantity * sp.price_unit) as total
@@ -50,6 +38,7 @@ export function SalesByCategoryPieChart() {
           GROUP BY c.id
           ORDER BY total DESC
         `;
+        // @ts-ignore
         const res: { rows: ChartData[] } = await runSql(query);
         setChartData(res.rows || []);
       } catch (err) {
@@ -80,6 +69,7 @@ export function SalesByCategoryPieChart() {
                 content={
                   <ChartTooltipContent
                     hideLabel
+                    // @ts-ignore
                     valueFormatter={(value) =>
                       `${currency} ${Number(value).toFixed(2)}`
                     }

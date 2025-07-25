@@ -11,7 +11,6 @@ export default function PosPage() {
     cart,
     barcode,
     setBarcode,
-    productLookup,
     error,
     lookupProduct,
     updateQuantity,
@@ -23,7 +22,7 @@ export default function PosPage() {
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const [previewProducts, setPreviewProducts] = useState<any[]>([]);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  // const [previewLoading, setPreviewLoading] = useState(false);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
@@ -36,7 +35,7 @@ export default function PosPage() {
       setPreviewProducts([]);
       return;
     }
-    setPreviewLoading(true);
+    // setPreviewLoading(true);
     const escapedBarcode = escapeSqlString(`%${barcode}%`);
     const query = `SELECT id, name, barcode, price_unit as price, image_base64,
                    (COALESCE((SELECT SUM(quantity) FROM stock_entries WHERE product_id = p.id), 0) -
@@ -47,12 +46,12 @@ export default function PosPage() {
     runSql(query)
       .then((res: any) => {
         setPreviewProducts(res.rows || []);
-        setPreviewLoading(false);
+        // setPreviewLoading(false);
       })
       .catch((e: any) => {
         console.error("Error in product search:", e);
         setPreviewProducts([]);
-        setPreviewLoading(false);
+        // setPreviewLoading(false);
       });
   }, [barcode]);
 

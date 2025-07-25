@@ -1,18 +1,7 @@
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, } from "@/components/ui/card";
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, } from "@/components/ui/chart";
 import { runSql } from "@/runSql";
 
 type ChartData = {
@@ -52,6 +41,7 @@ export function TopProductsBarChart() {
           ORDER BY units DESC
           LIMIT ${sanitizeNumber(limit)}
         `;
+        // @ts-ignore
         const res: { rows: ChartData[] } = await runSql(query);
         setChartData(res.rows || []);
       } catch (err) {

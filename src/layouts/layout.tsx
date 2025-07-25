@@ -32,16 +32,18 @@ const AppLayout = () => {
           <header className="flex h-16 shrink-0 items-center gap-2">
             <div className="flex items-center gap-2 px-4 flex-1 pr-4">
               <SidebarTrigger className="-ml-1" />
-              <ModeToggle />
               <Separator
                 orientation="vertical"
                 className="mr-2 data-[orientation=vertical]:h-4"
               />
-              <Button variant={isActive ? 'default' : 'outline'} size={'icon'} className="ml-auto" >
-                <Link to={"/settings"} >
-                  <Settings className="h-[1.2rem] w-[1.2rem] transition-all" />
-                </Link>
-              </Button>
+              <div className="ml-auto space-x-3" >
+                <ModeToggle />
+                <Button variant={isActive ? 'default' : 'outline'} size={'icon'} >
+                  <Link to={"/settings"} >
+                    <Settings className="h-[1.2rem] w-[1.2rem] transition-all" />
+                  </Link>
+                </Button>
+              </div>
             </div>
           </header>
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">

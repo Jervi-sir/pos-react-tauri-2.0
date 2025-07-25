@@ -36,6 +36,7 @@ export const LowStockProduct = () => {
         ORDER BY p.current_stock ASC
         LIMIT ${sanitizeNumber(limit)}
       `;
+      // @ts-ignore
       const res: { rows: Product[] } = await runSql(query);
       setLowStock(res.rows || []);
     } catch (err) {

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { runSql } from "@/runSql";
@@ -27,7 +27,7 @@ type InvoicePrintDialogProps = {
 };
 
 // Simple escaping function for SQLite string values
-const escapeSqlString = (value: string) => `'${value.replace(/'/g, "''")}'`;
+// const escapeSqlString = (value: string) => `'${value.replace(/'/g, "''")}'`;
 
 export function InvoicePrintDialog({ open, onOpenChange, invoice }: InvoicePrintDialogProps) {
   const [items, setItems] = useState<SaleProduct[]>([]);

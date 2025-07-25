@@ -1,15 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, } from "@/components/ui/select";
 import { runSql } from "@/runSql";
 import { InvoicePrintDialog } from "./invoice-print-dialog";
 import { ExportDialog } from "./invoice-export-dialog";
@@ -187,6 +179,7 @@ export default function InvoicesPage() {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Invoices</h2>
         <ExportDialog
+          // @ts-ignore
           buildQuery={(range: string, s: string, e: string, exportUserId: string, exportInvoiceType: string) => {
             let query = `
               SELECT 

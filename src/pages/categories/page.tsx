@@ -16,6 +16,7 @@ const PAGE_SIZE = 10;
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
+  // @ts-ignore
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -111,7 +112,7 @@ export default function CategoriesPage() {
         <h2 className="text-2xl font-bold">Categories</h2>
         <Button onClick={() => openDialog()}>New Category</Button>
       </div>
-      {loading && <div>Loading...</div>}
+      {/* {loading && <div>Loading...</div>} */}
       {error && (
         <div className="mb-2 text-red-600">
           {error}

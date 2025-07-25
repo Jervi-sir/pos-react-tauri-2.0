@@ -42,6 +42,7 @@ const escapeSqlString = (value: string) => `'${value.replace(/'/g, "''")}'`;
 export default function SalesListPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  // @ts-ignore
   const [loading, setLoading] = useState(false);
   const [expandedSale, setExpandedSale] = useState<number | null>(null);
   const [saleProducts, setSaleProducts] = useState<Record<number, SaleProduct[]>>({});
