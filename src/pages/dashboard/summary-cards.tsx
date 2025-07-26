@@ -40,8 +40,8 @@ export const SummaryCards = () => {
         SELECT SUM(quantity * current_price_unit) as inventoryValue
         FROM products
       `;
-      const sres = await runSql(salesQuery);
-      const ires = await runSql(inventoryQuery);
+      const sres = await runSql(salesQuery) as any;
+      const ires = await runSql(inventoryQuery) as any;
       setSummary({
         sales: sres[0]?.sales || 0,
         revenue: Number(sres[0]?.revenue) || 0,

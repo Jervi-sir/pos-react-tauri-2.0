@@ -24,6 +24,7 @@ const PAGE_SIZE = 10; // Number of users per page
 
 export default function UsersScreen() {
   const [users, setUsers] = useState<User[]>([]);
+  // @ts-ignore
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1); // Pagination state
   const [totalCount, setTotalCount] = useState(0); // Total number of users

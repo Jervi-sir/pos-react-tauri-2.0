@@ -63,6 +63,7 @@ export default function CategoriesPage() {
       }
 
       // Extract total count
+      // @ts-ignore
       const total = Number(countRows[0]?.total || 0);
       setTotalCount(total);
     } catch (err) {

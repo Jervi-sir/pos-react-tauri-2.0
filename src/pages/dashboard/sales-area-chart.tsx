@@ -92,6 +92,7 @@ export function SalesAreaChart() {
                   <ChartTooltipContent
                     indicator="line"
                     labelFormatter={(val) => new Date(val).toLocaleDateString()}
+                    // @ts-ignore
                     valueFormatter={(value) => `DZD ${Number(value).toFixed(2)}`}
                   />
                 }

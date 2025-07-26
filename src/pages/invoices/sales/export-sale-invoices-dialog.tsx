@@ -61,7 +61,6 @@ export function ExportSalesDialog({
         JOIN products p ON sp.product_id = p.id
         WHERE 1=1
       `;
-      const params: string[] = [];
 
       if (selectedInvoiceType !== "all") {
         query += ` AND i.invoice_type = '${selectedInvoiceType}'`;

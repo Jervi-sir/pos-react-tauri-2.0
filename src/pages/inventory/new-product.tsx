@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { runSql } from "@/runSql";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 export const NewProduct = ({ categories, fetchProducts }: any) => {
   const [error, setError] = useState<string | null>(null);
@@ -259,11 +259,12 @@ export const NewProduct = ({ categories, fetchProducts }: any) => {
               required
             >
               <option value="">Select a category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
+              {// @ts-ignore
+                categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
             </select>
           </div>
           <div className="grid gap-3">

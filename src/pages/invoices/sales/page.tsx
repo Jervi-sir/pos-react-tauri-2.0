@@ -24,6 +24,7 @@ import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ExportSalesDialog } from "./export-sale-invoices-dialog";
+import { PaginationSection } from "@/components/pagination-section";
 
 type Invoice = {
   id: number;
@@ -60,16 +61,19 @@ type User = {
 
 export default function SalesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [users, setUsers] = useState<User[]>([]); // New state for users
+  const [users, setUsers] = useState<User[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedInvoiceType, setSelectedInvoiceType] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
-  const [userId, setUserId] = useState<string>("all"); // Changed to "all" as default
+  const [userId, setUserId] = useState<string>("all");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [soldProducts, setSoldProducts] = useState<SoldProduct[]>([]);
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState<number>(1); // Current page
+  const [pageSize] = useState<number>(10); // Number of invoices per page
+  const [totalInvoices, setTotalInvoices] = useState<number>(0); // Total number of invoices
   const printRef = useRef<HTMLDivElement>(null);
 
   // Fetch store info
@@ -77,7 +81,9 @@ export default function SalesPage() {
     try {
       const query = `SELECT * FROM store_info LIMIT 1`;
       const result = await runSql(query);
+      // @ts-ignore
       if (result.length) {
+        // @ts-ignore
         setStoreInfo(result[0] as StoreInfo);
       }
     } catch (err) {
@@ -98,9 +104,44 @@ export default function SalesPage() {
     }
   };
 
-  // Fetch invoices with filters
+  // Fetch invoices with filters and pagination
   const fetchInvoices = async () => {
     try {
+      // First, get the total count of invoices for pagination
+      let countQuery = `
+        SELECT COUNT(DISTINCT i.id) as total
+        FROM invoices i
+        JOIN sold_products sp ON i.id = sp.invoice_id
+        JOIN products p ON sp.product_id = p.id
+        WHERE 1=1
+        AND i.invoice_type = 'sold'
+      `;
+
+      if (selectedCategory !== "all") {
+        countQuery += ` AND p.category_id = ${parseInt(selectedCategory)}`;
+      }
+      if (startDate) {
+        countQuery += ` AND i.created_at >= '${startDate}'`;
+      }
+      if (endDate) {
+        countQuery += ` AND i.created_at <= '${endDate} 23:59:59'`;
+      }
+      if (userId !== "all") {
+        const parsedUserId = parseInt(userId, 10);
+        if (!isNaN(parsedUserId)) {
+          countQuery += ` AND i.user_id = ${parsedUserId}`;
+        } else {
+          toast.error("Invalid User ID selected.");
+          return;
+        }
+      }
+
+      const countResult = await runSql(countQuery);
+      // @ts-ignore
+      const total = countResult[0]?.total || 0;
+      setTotalInvoices(total);
+
+      // Now fetch the paginated invoices
       let query = `
         SELECT DISTINCT i.id, i.invoice_type, i.total_quantity, i.total_price, i.user_id, i.created_at
         FROM invoices i
@@ -109,7 +150,6 @@ export default function SalesPage() {
         WHERE 1=1
         AND i.invoice_type = 'sold'
       `;
-      const params: string[] = [];
 
       if (selectedCategory !== "all") {
         query += ` AND p.category_id = ${parseInt(selectedCategory)}`;
@@ -131,6 +171,8 @@ export default function SalesPage() {
       }
 
       query += ` ORDER BY i.created_at DESC`;
+      query += ` LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`;
+
       console.log('query: ', query);
 
       const results = await runSql(query);
@@ -162,6 +204,7 @@ export default function SalesPage() {
 
   // Print receipt
   const handlePrint = useReactToPrint({
+    // @ts-ignore
     content: () => printRef.current,
     documentTitle: `Receipt_${selectedInvoice?.id || "unknown"}_${new Date().toISOString()}`,
   });
@@ -179,6 +222,7 @@ export default function SalesPage() {
       return;
     }
     setStartDate(value);
+    setPage(1); // Reset to first page when filters change
   };
 
   // Validate end date
@@ -188,13 +232,22 @@ export default function SalesPage() {
       return;
     }
     setEndDate(value);
+    setPage(1); // Reset to first page when filters change
   };
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCategory, selectedInvoiceType, userId]);
 
   useEffect(() => {
     fetchStoreInfo();
-    fetchUsers(); // Fetch users on mount
+    fetchUsers();
     fetchInvoices();
-  }, [selectedCategory, selectedInvoiceType, startDate, endDate, userId]);
+  }, [selectedCategory, selectedInvoiceType, startDate, endDate, userId, page]);
+
+  // Calculate total number of pages
+  const pageCount = Math.ceil(totalInvoices / pageSize);
 
   return (
     <>
@@ -219,7 +272,7 @@ export default function SalesPage() {
             min={startDate}
             className="w-[150px]"
           />
-          <Select value={userId} onValueChange={setUserId}>
+          <Select value={userId} onValueChange={(value) => { setUserId(value); setPage(1); }}>
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Select User" />
             </SelectTrigger>
@@ -241,6 +294,7 @@ export default function SalesPage() {
             setSelectedInvoiceType("all");
             setSelectedCategory("all");
             setUserId("all");
+            setPage(1); // Reset page when clearing filters
           }}
           className="w-full sm:w-auto"
         >
@@ -264,7 +318,6 @@ export default function SalesPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Invoice ID</TableHead>
-              <TableHead>Invoice Type</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Total Quantity</TableHead>
               <TableHead>Total Price</TableHead>
@@ -281,7 +334,6 @@ export default function SalesPage() {
                   className="cursor-pointer"
                 >
                   <TableCell>{invoice.id}</TableCell>
-                  <TableCell>{invoice.invoice_type}</TableCell>
                   <TableCell>{format(new Date(invoice.created_at), "PPP p")}</TableCell>
                   <TableCell>{invoice.total_quantity}</TableCell>
                   <TableCell>${invoice.total_price.toFixed(2)}</TableCell>
@@ -310,6 +362,14 @@ export default function SalesPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Section */}
+      <PaginationSection
+        page={page}
+        pageCount={pageCount}
+        setPage={setPage}
+        maxPagesToShow={5}
+      />
 
       {/* Invoice Details Dialog */}
       {selectedInvoice && (

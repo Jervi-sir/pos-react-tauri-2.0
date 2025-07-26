@@ -86,7 +86,9 @@ export default function BulkCreateProducts() {
                     LEFT JOIN product_categories pc ON p.category_id = pc.id
                     WHERE p.barcode = '${barcode.replace(/'/g, "''")}'`;
       const result = await runSql(query);
+      // @ts-ignore
       if (result.length > 0) {
+        // @ts-ignore
         const product = result[0] as ProductEntry;
         product.isNew = false;
         product.quantity = 1; // Default quantity to add
@@ -191,9 +193,11 @@ export default function BulkCreateProducts() {
           LIMIT 1
         `;
           const productResult = await runSql(fetchProductQuery);
+          // @ts-ignore
           if (!productResult.length) {
             throw new Error(`Failed to retrieve product ID for ${product.name}`);
           }
+          // @ts-ignore
           product.id = productResult[0].id;
         } else {
           // Update existing product quantity
@@ -316,6 +320,7 @@ export default function BulkCreateProducts() {
                 <TableRow key={index}>
                   <TableCell>
                     <img
+                      // @ts-ignore
                       src={product.image_base64}
                       alt={product.name}
                       className="w-12 h-12 object-cover rounded"

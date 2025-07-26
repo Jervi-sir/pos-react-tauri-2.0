@@ -1,6 +1,4 @@
-// src/pages/EntryInvoicesPage.tsx
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -24,8 +22,9 @@ import { runSql } from "@/runSql";
 import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { routes } from "@/main";
 import { ExportEntryInvoicesDialog } from "./export-entry-invoices-dialog";
+// Import PaginationSection
+import { PaginationSection } from "@/components/pagination-section";
 
 type Invoice = {
   id: number;
@@ -61,16 +60,19 @@ type User = {
 };
 
 export default function EntryInvoicesPage() {
-  const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [users, setUsers] = useState<User[]>([]); // New state for users
+  const [users, setUsers] = useState<User[]>([]);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
-  const [userId, setUserId] = useState<string>("all"); // New state for user_id filter
+  const [userId, setUserId] = useState<string>("all");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [soldProducts, setSoldProducts] = useState<SoldProduct[]>([]);
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Add pagination state
+  const [page, setPage] = useState<number>(1);
+  const [pageCount, setPageCount] = useState<number>(1);
+  const pageSize = 10; // Number of invoices per page
   const printRef = useRef<HTMLDivElement>(null);
 
   // Fetch store info
@@ -78,7 +80,9 @@ export default function EntryInvoicesPage() {
     try {
       const query = `SELECT * FROM store_info LIMIT 1`;
       const result = await runSql(query);
+      // @ts-ignore
       if (result.length) {
+        // @ts-ignore
         setStoreInfo(result[0] as StoreInfo);
       }
     } catch (err) {
@@ -99,9 +103,50 @@ export default function EntryInvoicesPage() {
     }
   };
 
-  // Fetch invoices with filters
+  // Fetch total number of invoices for pagination
+  const fetchInvoiceCount = async () => {
+    try {
+      let query = `
+        SELECT COUNT(DISTINCT i.id) as total
+        FROM invoices i
+        LEFT JOIN sold_products sp ON i.id = sp.invoice_id
+        LEFT JOIN products p ON sp.product_id = p.id
+        WHERE i.invoice_type = 'bought'
+      `;
+      if (startDate) {
+        query += ` AND i.created_at >= '${startDate}'`;
+      }
+      if (endDate) {
+        query += ` AND i.created_at <= '${endDate} 23:59:59'`;
+      }
+      if (userId !== "all") {
+        const parsedUserId = parseInt(userId, 10);
+        if (!isNaN(parsedUserId)) {
+          query += ` AND i.user_id = ${parsedUserId}`;
+        } else {
+          toast.error("Invalid User ID selected.");
+          return 0;
+        }
+      }
+
+      console.log("Fetch Invoice Count Query:", query); // Debug
+      const result = await runSql(query);
+      // @ts-ignore
+      const totalInvoices = result[0]?.total || 0;
+      return totalInvoices;
+    } catch (err) {
+      console.error("Error fetching invoice count:", err);
+      toast.error(`Failed to fetch invoice count: ${(err as Error).message}`);
+      return 0;
+    }
+  };
+
+  // Fetch invoices with pagination
   const fetchInvoices = async () => {
     try {
+      // Calculate offset for pagination
+      const offset = (page - 1) * pageSize;
+
       let query = `
         SELECT DISTINCT i.id, i.invoice_type, i.total_quantity, i.total_price, i.user_id, i.created_at
         FROM invoices i
@@ -125,12 +170,16 @@ export default function EntryInvoicesPage() {
         }
       }
 
-      query += ` ORDER BY i.created_at DESC`;
+      query += ` ORDER BY i.created_at DESC LIMIT ${pageSize} OFFSET ${offset}`;
 
       console.log("Fetch Invoices Query:", query); // Debug
       const results = await runSql(query);
       console.log("Fetch Invoices Results:", results); // Debug
       setInvoices(results as Invoice[]);
+
+      // Fetch total invoice count to calculate pageCount
+      const totalInvoices = await fetchInvoiceCount();
+      setPageCount(Math.ceil(totalInvoices / pageSize));
     } catch (err) {
       console.error("Error fetching invoices:", err);
       setError(`Failed to fetch invoices: ${(err as Error).message}`);
@@ -160,6 +209,7 @@ export default function EntryInvoicesPage() {
 
   // Print receipt
   const handlePrint = useReactToPrint({
+    // @ts-ignore
     content: () => printRef.current,
     documentTitle: `Purchase_Receipt_${selectedInvoice?.id || "unknown"}_${new Date().toISOString()}`,
   });
@@ -177,6 +227,7 @@ export default function EntryInvoicesPage() {
       return;
     }
     setStartDate(value);
+    setPage(1); // Reset to first page when filters change
   };
 
   // Validate end date
@@ -186,13 +237,20 @@ export default function EntryInvoicesPage() {
       return;
     }
     setEndDate(value);
+    setPage(1); // Reset to first page when filters change
+  };
+
+  // Handle user ID change
+  const handleUserIdChange = (value: string) => {
+    setUserId(value);
+    setPage(1); // Reset to first page when filters change
   };
 
   useEffect(() => {
     fetchStoreInfo();
-    fetchUsers(); // Fetch users on mount
+    fetchUsers();
     fetchInvoices();
-  }, [startDate, endDate, userId]); // Added userId to dependencies
+  }, [startDate, endDate, userId, page]); // Added page to dependencies
 
   return (
     <>
@@ -216,7 +274,7 @@ export default function EntryInvoicesPage() {
             min={startDate}
             className="w-[150px]"
           />
-          <Select value={userId} onValueChange={setUserId}>
+          <Select value={userId} onValueChange={handleUserIdChange}>
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Select User" />
             </SelectTrigger>
@@ -236,6 +294,7 @@ export default function EntryInvoicesPage() {
             setStartDate("");
             setEndDate("");
             setUserId("all");
+            setPage(1); // Reset page when clearing filters
           }}
           className="w-full sm:w-auto"
         >
@@ -301,6 +360,14 @@ export default function EntryInvoicesPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      <PaginationSection
+        page={page}
+        pageCount={pageCount}
+        setPage={setPage}
+        maxPagesToShow={5}
+      />
 
       {/* Invoice Details Dialog */}
       {selectedInvoice && (

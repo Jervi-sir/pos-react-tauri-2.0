@@ -1,6 +1,5 @@
 // src/pages/POS.tsx
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,7 +17,6 @@ import { runSql } from "@/runSql";
 import { useDebounce } from "use-debounce";
 import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
-import { routes } from "@/main";
 
 type Product = {
   id: number;

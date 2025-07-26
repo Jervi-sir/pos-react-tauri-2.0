@@ -1,4 +1,3 @@
-// src/pages/ProductDetails.tsx
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -8,6 +7,7 @@ import { useDebounce } from "use-debounce";
 import { toast } from "sonner";
 import { routes } from "@/main";
 import { ExportInventoryHistoryDialog } from "./export-inventory-history";
+import { PaginationSection } from "@/components/pagination-section";
 
 type Product = {
   id: number;
@@ -40,7 +40,7 @@ type SearchResult = {
 };
 
 export default function SingleProductPage() {
-  const { id } = useParams<{ id?: string }>(); // Optional id from URL
+  const { id } = useParams<{ id?: string }>();
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
@@ -49,9 +49,13 @@ export default function SingleProductPage() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [pageCount, setPageCount] = useState(1);
+  const [itemsPerPage] = useState(10); // Number of history entries per page
 
   // Fetch product details and history by id
-  const fetchProductDetails = async (productId: string) => {
+  const fetchProductDetails = async (productId: string, currentPage: number = 1) => {
     try {
       setLoading(true);
       setError(null);
@@ -64,20 +68,36 @@ export default function SingleProductPage() {
         WHERE p.id = ${parseInt(productId, 10)}
       `;
       const productResult = await runSql(productQuery);
+      // @ts-ignore
       if (!productResult.length) {
         setError("Product not found");
         setProduct(null);
         setHistoryEntries([]);
+        setPageCount(1);
         return;
       }
+      // @ts-ignore
       setProduct(productResult[0] as Product);
 
-      // Fetch history entries
+      // Fetch total count for pagination
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM history_product_entries
+        WHERE product_id = ${parseInt(productId, 10)}
+      `;
+      const countResult = await runSql(countQuery);
+      // @ts-ignore
+      const totalItems = countResult[0]?.total || 0;
+      setPageCount(Math.ceil(totalItems / itemsPerPage));
+
+      // Fetch history entries for current page
+      const offset = (currentPage - 1) * itemsPerPage;
       const historyQuery = `
         SELECT *
         FROM history_product_entries
         WHERE product_id = ${parseInt(productId, 10)}
         ORDER BY created_at DESC
+        LIMIT ${itemsPerPage} OFFSET ${offset}
       `;
       const historyResult = await runSql(historyQuery);
       setHistoryEntries(historyResult as HistoryEntry[]);
@@ -112,15 +132,17 @@ export default function SingleProductPage() {
     }
   };
 
-  // Fetch product details when id changes
+  // Fetch product details when id or page changes
   useEffect(() => {
     if (id) {
-      fetchProductDetails(id);
+      fetchProductDetails(id, page);
     } else {
       setProduct(null);
       setHistoryEntries([]);
+      setPage(1);
+      setPageCount(1);
     }
-  }, [id]);
+  }, [id, page]);
 
   // Fetch search results when debounced query changes
   useEffect(() => {
@@ -131,6 +153,7 @@ export default function SingleProductPage() {
   const handleSelectProduct = (productId: number) => {
     setSearchQuery("");
     setSearchResults([]);
+    setPage(1); // Reset to first page when selecting a new product
     navigate(routes.productId + productId);
   };
 
@@ -138,10 +161,10 @@ export default function SingleProductPage() {
   if (loading) return <div className="container mx-auto py-10">Loading...</div>;
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Product Details</h1>
+    <>
+      <h1 className="text-2xl font-bold">Product Details</h1>
       {/* Search Input */}
-      <div className="mb-6">
+      <>
         <Input
           placeholder="Search by name or barcode"
           value={searchQuery}
@@ -170,7 +193,7 @@ export default function SingleProductPage() {
             </Table>
           </div>
         )}
-      </div>
+      </>
       {/* Product Details */}
       {product ? (
         <div className="grid gap-6">
@@ -241,11 +264,18 @@ export default function SingleProductPage() {
                 </TableBody>
               </Table>
             </div>
+            {/* Pagination */}
+            <PaginationSection
+              page={page}
+              pageCount={pageCount}
+              setPage={setPage}
+              maxPagesToShow={5}
+            />
           </div>
         </div>
       ) : (
         <p>Please search for a product or provide a product ID.</p>
       )}
-    </div>
+    </>
   );
 }

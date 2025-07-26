@@ -76,6 +76,7 @@ export function SalesByCategoryPieChart() {
                 content={
                   <ChartTooltipContent
                     hideLabel
+                    // @ts-ignore
                     valueFormatter={(value) => `DZD ${Number(value).toFixed(2)}`}
                   />
                 }

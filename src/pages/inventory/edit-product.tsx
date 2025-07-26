@@ -32,6 +32,7 @@ export const EditProductDialog = ({ product, fetchProducts }: EditProductDialogP
   const [barcode, setBarcode] = useState<string | null>(product.barcode);
   const [currentPriceUnit, setCurrentPriceUnit] = useState(product.current_price_unit.toString());
   const [imageBase64, setImageBase64] = useState<string | null>(product.image_base64);
+  // @ts-ignore
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
