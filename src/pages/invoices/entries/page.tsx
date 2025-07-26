@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,13 +12,6 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { runSql } from "@/runSql";
 import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
@@ -51,10 +45,9 @@ type StoreInfo = {
   logo_base64: string | null;
 };
 
-export default function SalesPage() {
+export default function EntryInvoicesPage() {
+  const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedInvoiceType, setSelectedInvoiceType] = useState<string>("all"); // New state for invoice type
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -68,9 +61,7 @@ export default function SalesPage() {
     try {
       const query = `SELECT * FROM store_info LIMIT 1`;
       const result = await runSql(query);
-      // @ts-ignore
       if (result.length) {
-        // @ts-ignore
         setStoreInfo(result[0] as StoreInfo);
       }
     } catch (err) {
@@ -85,16 +76,10 @@ export default function SalesPage() {
       let query = `
         SELECT DISTINCT i.id, i.invoice_type, i.total_quantity, i.total_price, i.user_id, i.created_at
         FROM invoices i
-        JOIN sold_products sp ON i.id = sp.invoice_id
-        JOIN products p ON sp.product_id = p.id
-        WHERE 1=1
-        AND i.invoice_type = 'sold'
+        LEFT JOIN sold_products sp ON i.id = sp.invoice_id
+        LEFT JOIN products p ON sp.product_id = p.id
+        WHERE i.invoice_type = 'bought'
       `;
-      const params: string[] = [];
-     
-      if (selectedCategory !== "all") {
-        query += ` AND p.category_id = ${parseInt(selectedCategory)}`;
-      }
       if (startDate) {
         query += ` AND i.created_at >= '${startDate}'`;
       }
@@ -103,9 +88,10 @@ export default function SalesPage() {
       }
 
       query += ` ORDER BY i.created_at DESC`;
-        console.log('query: ', query)
 
+      console.log("Fetch Invoices Query:", query); // Debug
       const results = await runSql(query);
+      console.log("Fetch Invoices Results:", results); // Debug
       setInvoices(results as Invoice[]);
     } catch (err) {
       console.error("Error fetching invoices:", err);
@@ -114,7 +100,7 @@ export default function SalesPage() {
     }
   };
 
-  // Fetch sold products for a specific invoice
+  // Fetch products for a specific invoice
   const fetchSoldProducts = async (invoiceId: number) => {
     try {
       const query = `
@@ -123,20 +109,21 @@ export default function SalesPage() {
         JOIN products p ON sp.product_id = p.id
         WHERE sp.invoice_id = ${invoiceId}
       `;
+      console.log("Fetch Sold Products Query:", query); // Debug
       const results = await runSql(query);
+      console.log("Fetch Sold Products Results:", results); // Debug
       setSoldProducts(results as SoldProduct[]);
     } catch (err) {
-      console.error("Error fetching sold products:", err);
-      setError(`Failed to fetch sold products: ${(err as Error).message}`);
-      toast.error(`Failed to fetch sold products: ${(err as Error).message}`);
+      console.error("Error fetching products:", err);
+      setError(`Failed to fetch products: ${(err as Error).message}`);
+      toast.error(`Failed to fetch products: ${(err as Error).message}`);
     }
   };
 
   // Print receipt
   const handlePrint = useReactToPrint({
-    // @ts-ignore
     content: () => printRef.current,
-    documentTitle: `Receipt_${selectedInvoice?.id || "unknown"}_${new Date().toISOString()}`,
+    documentTitle: `Purchase_Receipt_${selectedInvoice?.id || "unknown"}_${new Date().toISOString()}`,
   });
 
   // Handle invoice click
@@ -166,11 +153,11 @@ export default function SalesPage() {
   useEffect(() => {
     fetchStoreInfo();
     fetchInvoices();
-  }, [selectedCategory, selectedInvoiceType, startDate, endDate]); // Added selectedInvoiceType to dependencies
+  }, [startDate, endDate]);
 
   return (
     <div className="container mx-auto py-10">
-      <h1 className="text-2xl font-bold mb-6">Sales History</h1>
+      <h1 className="text-2xl font-bold mb-6">Purchase History</h1>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -195,7 +182,6 @@ export default function SalesPage() {
           onClick={() => {
             setStartDate("");
             setEndDate("");
-            setSelectedInvoiceType("all"); // Reset invoice type filter
           }}
           className="w-full sm:w-auto"
         >
@@ -212,7 +198,6 @@ export default function SalesPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Invoice ID</TableHead>
-              <TableHead>Invoice Type</TableHead> {/* Added Invoice Type column */}
               <TableHead>Date</TableHead>
               <TableHead>Total Quantity</TableHead>
               <TableHead>Total Price</TableHead>
@@ -226,10 +211,9 @@ export default function SalesPage() {
                 <TableRow
                   key={invoice.id}
                   onClick={() => handleInvoiceClick(invoice)}
-                  className="cursor-pointer"
+                  className="cursor-pointer hover:bg-gray-100"
                 >
                   <TableCell>{invoice.id}</TableCell>
-                  <TableCell>{invoice.invoice_type}</TableCell> {/* Display invoice type */}
                   <TableCell>{format(new Date(invoice.created_at), "PPP p")}</TableCell>
                   <TableCell>{invoice.total_quantity}</TableCell>
                   <TableCell>${invoice.total_price.toFixed(2)}</TableCell>
@@ -250,8 +234,8 @@ export default function SalesPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
-                  No sales found.
+                <TableCell colSpan={6} className="text-center">
+                  No purchases found.
                 </TableCell>
               </TableRow>
             )}
@@ -264,9 +248,9 @@ export default function SalesPage() {
         <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Invoice #{selectedInvoice.id}</DialogTitle>
+              <DialogTitle>Purchase Invoice #{selectedInvoice.id}</DialogTitle>
               <DialogDescription>
-                Details for {selectedInvoice.invoice_type} on {format(new Date(selectedInvoice.created_at), "PPP p")}.
+                Details for purchase on {format(new Date(selectedInvoice.created_at), "PPP p")}.
                 Total: ${selectedInvoice.total_price.toFixed(2)}
               </DialogDescription>
             </DialogHeader>
@@ -281,27 +265,35 @@ export default function SalesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {soldProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>
-                      {product.image_base64 ? (
-                        <img
-                          src={product.image_base64}
-                          alt={product.name}
-                          className="w-8 h-8 object-cover rounded"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 bg-gray-200 flex items-center justify-center rounded">
-                          N/A
-                        </div>
-                      )}
+                {soldProducts.length > 0 ? (
+                  soldProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        {product.image_base64 ? (
+                          <img
+                            src={product.image_base64}
+                            alt={product.name}
+                            className="w-8 h-8 object-cover rounded"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 bg-gray-200 flex items-center justify-center rounded">
+                            N/A
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>{product.name}</TableCell>
+                      <TableCell>{product.quantity}</TableCell>
+                      <TableCell>${product.price_unit.toFixed(2)}</TableCell>
+                      <TableCell>${product.total_price.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      No products found for this invoice.
                     </TableCell>
-                    <TableCell>{product.name}</TableCell>
-                    <TableCell>{product.quantity}</TableCell>
-                    <TableCell>${product.price_unit.toFixed(2)}</TableCell>
-                    <TableCell>${product.total_price.toFixed(2)}</TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
             <DialogFooter>
@@ -331,9 +323,7 @@ export default function SalesPage() {
             {storeInfo?.email && <p>Email: {storeInfo.email}</p>}
             {storeInfo?.tax_id && <p>Tax ID: {storeInfo.tax_id}</p>}
           </div>
-          <h2 className="text-xl font-semibold mt-6">
-            {selectedInvoice?.invoice_type} Receipt #{selectedInvoice?.id}
-          </h2>
+          <h2 className="text-xl font-semibold mt-6">Purchase Receipt #{selectedInvoice?.id}</h2>
           <p>Date: {selectedInvoice && format(new Date(selectedInvoice.created_at), "PPP p")}</p>
           <Table className="mt-4">
             <TableHeader>
@@ -360,6 +350,14 @@ export default function SalesPage() {
           </div>
         </div>
       </div>
+
+      <Button
+        variant="outline"
+        className="mt-4"
+        onClick={() => navigate("/pos")}
+      >
+        Back to POS
+      </Button>
     </div>
   );
 }

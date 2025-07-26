@@ -9,7 +9,6 @@ type StoreInfo = {
   phone: string;
   email: string;
   tax_id: string;
-  currency: string;
   logo_base64: string;
 };
 
@@ -42,7 +41,6 @@ const defaultStoreInfo: StoreInfo = {
   phone: "",
   email: "",
   tax_id: "",
-  currency: "DZD",
   logo_base64: "",
 };
 
@@ -96,7 +94,6 @@ export const StoreInfoProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         phone = '${sanitize(updated.phone)}',
         email = '${sanitize(updated.email)}',
         tax_id = '${sanitize(updated.tax_id)}',
-        currency = '${sanitize(updated.currency)}',
         logo_base64 = '${sanitize(updated.logo_base64)}',
         updated_at = CURRENT_TIMESTAMP
       WHERE id = 1

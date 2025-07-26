@@ -1,5 +1,6 @@
-- do an other schema for the db
-  - add on delete cascade
+- do an other schema for the db @done
+  - add on delete cascade @done
+- login @done
 - stocks
   - add product
   - delete product

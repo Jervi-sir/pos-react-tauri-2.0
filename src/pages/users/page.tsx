@@ -16,7 +16,7 @@ type User = {
 
 const ROLE_OPTIONS = [
   { value: "owner", label: "Owner" },
-  { value: "admin", label: "Admin" },
+  // { value: "admin", label: "Admin" },
   { value: "cashier", label: "Cashier" },
 ];
 
@@ -44,17 +44,17 @@ export default function UsersScreen() {
       // Fetch paginated users
       const res: any = await runSql(`
         SELECT id, name, email, role, password FROM users 
-        WHERE role != 'admin' 
+        WHERE role != 'admin'  AND role != 'jervi'
         ORDER BY id DESC
         LIMIT ${PAGE_SIZE} OFFSET ${offset}
       `);
-      setUsers(res.rows || []);
+      setUsers(res || []);
 
       // Fetch total count for pagination
       const countRes: any = await runSql(`
         SELECT COUNT(*) as cnt FROM users WHERE role != 'admin'
       `);
-      setTotalCount(countRes.rows?.[0]?.cnt || 0);
+      setTotalCount(countRes?.[0]?.cnt || 0);
     } catch (e: any) {
       setError(e?.message ?? String(e));
     } finally {

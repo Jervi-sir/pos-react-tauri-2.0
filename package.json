@@ -39,10 +39,12 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.7.0",
     "react-tailwindcss-datepicker": "^1.7.3",
+    "react-to-print": "^3.1.1",
     "recharts": "^2.15.4",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",
+    "use-debounce": "^10.0.5",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

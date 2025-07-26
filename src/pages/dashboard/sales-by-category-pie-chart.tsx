@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
 import { Pie, PieChart } from "recharts";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, } from "@/components/ui/card";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, } from "@/components/ui/chart";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { runSql } from "@/runSql";
 
 type ChartData = {
@@ -15,39 +27,34 @@ const chartConfig = {
 
 export function SalesByCategoryPieChart() {
   const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [currency, setCurrency] = useState<string>("DZD");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
+    const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Fetch currency from store_info
-        const storeQuery = `SELECT currency FROM store_info WHERE id = 1`;
-        // @ts-ignore
-        const storeRes: { rows: { currency: string }[] } = await runSql(storeQuery);
-        setCurrency(storeRes.rows?.[0]?.currency || "DZD");
-        // Fetch sales by category
         const query = `
-          SELECT c.name as category, SUM(sp.quantity * sp.price_unit) as total
-          FROM sale_products sp
-          LEFT JOIN products p ON sp.product_id = p.id
-          LEFT JOIN categories c ON p.category_id = c.id
-          GROUP BY c.id
+          SELECT pc.name as category, SUM(sp.total_price) as total
+          FROM sold_products sp
+          JOIN products p ON sp.product_id = p.id
+          JOIN product_categories pc ON p.category_id = pc.id
+          JOIN invoices i ON sp.invoice_id = i.id
+          WHERE i.invoice_type = 'sold'
+          GROUP BY pc.id
           ORDER BY total DESC
         `;
-        // @ts-ignore
-        const res: { rows: ChartData[] } = await runSql(query);
-        setChartData(res.rows || []);
+        const res = await runSql(query);
+        setChartData(res as ChartData[]);
       } catch (err) {
         console.error("Error fetching sales by category:", err);
         setError("Failed to load sales by category.");
       } finally {
         setLoading(false);
       }
-    })();
+    };
+    fetchData();
   }, []);
 
   return (
@@ -69,10 +76,7 @@ export function SalesByCategoryPieChart() {
                 content={
                   <ChartTooltipContent
                     hideLabel
-                    // @ts-ignore
-                    valueFormatter={(value) =>
-                      `${currency} ${Number(value).toFixed(2)}`
-                    }
+                    valueFormatter={(value) => `DZD ${Number(value).toFixed(2)}`}
                   />
                 }
               />

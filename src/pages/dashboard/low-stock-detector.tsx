@@ -6,7 +6,7 @@ type Product = {
   id: number;
   name: string;
   barcode: string;
-  current_stock: number;
+  quantity: number;
 };
 
 export const LowStockProduct = () => {
@@ -14,7 +14,6 @@ export const LowStockProduct = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Sanitize number inputs
   const sanitizeNumber = (value: number) => {
     const num = Number(value);
     if (isNaN(num) || !Number.isInteger(num) || num < 0) {
@@ -30,15 +29,14 @@ export const LowStockProduct = () => {
       const threshold = 5;
       const limit = 10;
       const query = `
-        SELECT p.id, p.name, p.barcode, p.current_stock
-        FROM products p
-        WHERE p.current_stock <= ${sanitizeNumber(threshold)}
-        ORDER BY p.current_stock ASC
+        SELECT id, name, barcode, quantity
+        FROM products
+        WHERE quantity <= ${sanitizeNumber(threshold)}
+        ORDER BY quantity ASC
         LIMIT ${sanitizeNumber(limit)}
       `;
-      // @ts-ignore
-      const res: { rows: Product[] } = await runSql(query);
-      setLowStock(res.rows || []);
+      const res = await runSql(query);
+      setLowStock(res as Product[]);
     } catch (err) {
       console.error("Error fetching low stock products:", err);
       setError("Failed to load low stock products.");
@@ -81,7 +79,7 @@ export const LowStockProduct = () => {
                     <td className="px-2 py-1">{prod.name}</td>
                     <td className="px-2 py-1">{prod.barcode}</td>
                     <td className="px-2 py-1 text-right font-semibold text-red-600">
-                      {prod.current_stock}
+                      {prod.quantity}
                     </td>
                   </tr>
                 ))

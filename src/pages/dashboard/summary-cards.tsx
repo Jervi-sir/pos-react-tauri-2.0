@@ -9,8 +9,8 @@ type Summary = {
   inventoryValue: number;
 };
 
-const currencyFormatter = (n: number, currency: string) =>
-  `${currency} ${Number(n || 0).toLocaleString(undefined, {
+const currencyFormatter = (n: number) =>
+  `DZD ${Number(n || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
   })}`;
 
@@ -21,7 +21,6 @@ export const SummaryCards = () => {
     avgSale: 0,
     inventoryValue: 0,
   });
-  const [currency, setCurrency] = useState<string>("DZD");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,32 +28,25 @@ export const SummaryCards = () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch currency from store_info
-      const storeQuery = `SELECT currency FROM store_info WHERE id = 1`;
-      // @ts-ignore
-      const storeRes: { rows: { currency: string }[] } = await runSql(storeQuery);
-      setCurrency(storeRes.rows?.[0]?.currency || "DZD");
-
-      // Fetch sales stats
-      // @ts-ignore
-      const sres: { rows: Summary[] } = await runSql(`
+      const salesQuery = `
         SELECT 
           COUNT(*) as sales, 
           SUM(total_price) as revenue, 
           AVG(total_price) as avgSale 
-        FROM sales
-      `);
-      // Fetch inventory value
-      // @ts-ignore
-      const ires: { rows: { inventoryValue: number }[] } = await runSql(`
-        SELECT SUM(p.current_stock * p.price_unit) as inventoryValue
-        FROM products p
-      `);
+        FROM invoices
+        WHERE invoice_type = 'sold'
+      `;
+      const inventoryQuery = `
+        SELECT SUM(quantity * current_price_unit) as inventoryValue
+        FROM products
+      `;
+      const sres = await runSql(salesQuery);
+      const ires = await runSql(inventoryQuery);
       setSummary({
-        sales: sres.rows?.[0]?.sales || 0,
-        revenue: Number(sres.rows?.[0]?.revenue) || 0,
-        avgSale: Number(sres.rows?.[0]?.avgSale) || 0,
-        inventoryValue: Number(ires.rows?.[0]?.inventoryValue) || 0,
+        sales: sres[0]?.sales || 0,
+        revenue: Number(sres[0]?.revenue) || 0,
+        avgSale: Number(sres[0]?.avgSale) || 0,
+        inventoryValue: Number(ires[0]?.inventoryValue) || 0,
       });
     } catch (err) {
       console.error("Error fetching summary stats:", err);
@@ -78,7 +70,7 @@ export const SummaryCards = () => {
           <CardTitle>Total Revenue</CardTitle>
         </CardHeader>
         <CardContent className="text-2xl font-bold">
-          {currencyFormatter(summary.revenue, currency)}
+          {currencyFormatter(summary.revenue)}
         </CardContent>
       </Card>
       <Card>
@@ -92,7 +84,7 @@ export const SummaryCards = () => {
           <CardTitle>Avg Sale</CardTitle>
         </CardHeader>
         <CardContent className="text-2xl font-bold">
-          {currencyFormatter(summary.avgSale, currency)}
+          {currencyFormatter(summary.avgSale)}
         </CardContent>
       </Card>
       <Card>
@@ -100,7 +92,7 @@ export const SummaryCards = () => {
           <CardTitle>Inventory Value</CardTitle>
         </CardHeader>
         <CardContent className="text-2xl font-bold">
-          {currencyFormatter(summary.inventoryValue, currency)}
+          {currencyFormatter(summary.inventoryValue)}
         </CardContent>
       </Card>
     </div>

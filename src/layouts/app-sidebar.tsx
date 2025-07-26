@@ -1,29 +1,8 @@
 import * as React from 'react';
-import {
-  ChartBarIcon,
-  Command,
-  Frame,
-  LogOutIcon,
-  Map,
-  PanelBottom,
-  PieChart,
-  Settings,
-  TerminalIcon,
-  User2,
-} from 'lucide-react';
+import { Command, Frame, LogOutIcon, Map, PanelBottom, PieChart, TerminalIcon, User2, } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 import { NavUser } from '@/components/nav-user';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarGroup,
-  SidebarGroupLabel,
-} from '@/components/ui/sidebar';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarGroup, SidebarGroupLabel, } from '@/components/ui/sidebar';
 import { useAuth } from '@/context/auth-context';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -38,20 +17,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   // Define navigation items with canAccess as an array of roles
   const data = [
-    { name: 'Dashboard', url: '/', icon: PanelBottom, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Stocks', url: '/stocks', icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Product', url: '/products', icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Dashboard [done]', url: '/', icon: PanelBottom, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Inventory [done]', url: '/product-inventory', icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Product [done]', url: '/products', icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
   ];
 
   const salesData = [
-    { name: 'Pos', url: '/pos', icon: User2, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Sales', url: '/sales', icon: PieChart, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Invoices', url: '/invoices', icon: Map, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Pos [done]', url: '/pos', icon: User2, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Invoices [done]', url: '/invoices', icon: PieChart, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Invoices Entries', url: '/invoices/entries', icon: PieChart, canAccess: ['owner', 'admin', 'cashier'] },
   ];
 
   const adminData = [
-    { name: 'Users', url: '/users', icon: Map, canAccess: ['admin'] },
-    { name: 'Categories', url: '/categories', icon: Map, canAccess: ['admin'] },
+    { name: 'Users [done]', url: '/users', icon: Map, canAccess: ['admin'] },
+    { name: 'Categories [done]', url: '/categories', icon: Map, canAccess: ['admin'] },
     { name: 'Sql Queries', url: '/sql', icon: TerminalIcon, canAccess: ['admin'] },
     { name: 'Sql Explorer', url: '/sql-explorer', icon: TerminalIcon, canAccess: ['admin'] },
   ];

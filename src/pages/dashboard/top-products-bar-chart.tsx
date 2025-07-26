@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, } from "@/components/ui/card";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, } from "@/components/ui/chart";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { runSql } from "@/runSql";
 
 type ChartData = {
@@ -18,7 +29,6 @@ export function TopProductsBarChart() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Sanitize number inputs
   const sanitizeNumber = (value: number) => {
     const num = Number(value);
     if (isNaN(num) || !Number.isInteger(num) || num < 0) {
@@ -28,29 +38,31 @@ export function TopProductsBarChart() {
   };
 
   useEffect(() => {
-    (async () => {
+    const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
         const limit = 7;
         const query = `
           SELECT p.name, SUM(sp.quantity) as units
-          FROM sale_products sp
-          LEFT JOIN products p ON sp.product_id = p.id
+          FROM sold_products sp
+          JOIN products p ON sp.product_id = p.id
+          JOIN invoices i ON sp.invoice_id = i.id
+          WHERE i.invoice_type = 'sold'
           GROUP BY sp.product_id
           ORDER BY units DESC
           LIMIT ${sanitizeNumber(limit)}
         `;
-        // @ts-ignore
-        const res: { rows: ChartData[] } = await runSql(query);
-        setChartData(res.rows || []);
+        const res = await runSql(query);
+        setChartData(res as ChartData[]);
       } catch (err) {
         console.error("Error fetching top products:", err);
         setError("Failed to load top products.");
       } finally {
         setLoading(false);
       }
-    })();
+    };
+    fetchData();
   }, []);
 
   return (

@@ -29,7 +29,8 @@ async fn run_sql(query: String) -> Result<serde_json::Value, String> {
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| format!("Collect error: {}", e))?;
 
-        Ok(json!({"rows": rows}))
+        // Ok(json!({"rows": rows}))
+        Ok(json!(rows))
     } else {
         // Non-SELECT, non-PRAGMA: execute and return affected rows
         let affected = conn.execute(&query, []).map_err(|e| format!("Execute error: {}", e))?;

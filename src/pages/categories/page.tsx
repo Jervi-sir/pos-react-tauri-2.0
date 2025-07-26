@@ -16,7 +16,6 @@ const PAGE_SIZE = 10;
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
-  // @ts-ignore
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -25,86 +24,103 @@ export default function CategoriesPage() {
   const [categoryName, setCategoryName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // Load categories from DB
-  const fetchCategories = async () => {
-    setLoading(true);
-    try {
-      const offset = (currentPage - 1) * PAGE_SIZE;
-      const res: any = await runSql(`
-        SELECT c.id, c.name, c.created_at, COUNT(p.id) as product_count
-        FROM categories c
-        LEFT JOIN products p ON c.id = p.category_id
-        GROUP BY c.id, c.name, c.created_at
-        ORDER BY c.created_at DESC
-        LIMIT ${PAGE_SIZE} OFFSET ${offset}
-      `);
-      setCategories(res.rows || []);
+  const offset = (currentPage - 1) * PAGE_SIZE;
+  const pageCount = Math.ceil(totalCount / PAGE_SIZE);
 
-      // Fetch total count
-      const countRes: any = await runSql(`
-        SELECT COUNT(*) as cnt FROM categories
-      `);
-      setTotalCount(countRes.rows?.[0]?.cnt || 0);
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
+  useEffect(() => {
+    loadCategories();
+  }, [currentPage]);
+
+  async function loadCategories() {
+    setLoading(true);
+
+    const query = `
+      SELECT pc.id, pc.name, pc.created_at, 
+             COUNT(p.id) AS product_count
+      FROM product_categories pc
+      LEFT JOIN products p ON p.category_id = pc.id
+      GROUP BY pc.id
+      ORDER BY pc.created_at DESC
+      LIMIT ${PAGE_SIZE} OFFSET ${offset};
+    `;
+    const countQuery = `SELECT COUNT(*) AS total FROM product_categories`;
+
+    try {
+      // Pass parameters for LIMIT and OFFSET
+      const data = await runSql(query);
+      const countRes = await runSql(countQuery);
+
+      // Extract rows from the response
+      const rows = data || [];
+      const countRows = countRes || [];
+
+      // Validate and set categories
+      if (Array.isArray(rows)) {
+        setCategories(rows as Category[]);
+      } else {
+        console.error("Unexpected response format from runSql:", data);
+        setCategories([]);
+      }
+
+      // Extract total count
+      const total = Number(countRows[0]?.total || 0);
+      setTotalCount(total);
+    } catch (err) {
+      console.error("Error loading categories:", err);
+      setError("Failed to load categories.");
+      setCategories([]);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  useEffect(() => {
-    fetchCategories();
-  }, [currentPage]);
+  function openDialog(cat?: Category) {
+    setEditId(cat?.id ?? null);
+    setCategoryName(cat?.name ?? "");
+    setError(null);
+    setOpen(true);
+  }
 
-  // Create or Edit
-  const handleSave = async () => {
+  async function handleSave() {
     if (!categoryName.trim()) {
-      setError("Category name required");
+      setError("Category name is required.");
       return;
     }
+
     try {
       if (editId) {
-        await runSql(
-          `UPDATE categories SET name = '${categoryName.replace(/'/g, "''")}' WHERE id = ${editId}`
-        );
+        const updateQuery = `
+          UPDATE product_categories 
+          SET name = '${categoryName}', updated_at = CURRENT_TIMESTAMP 
+          WHERE id = ${editId};
+        `;
+        await runSql(updateQuery);
       } else {
-        // Use current ISO string for created_at
-        const now = new Date().toISOString();
-        await runSql(
-          `INSERT INTO categories (name, created_at) VALUES ('${categoryName.replace(/'/g, "''")}', '${now}')`
-        );
+        const insertQuery = `
+          INSERT INTO product_categories (name, created_at, updated_at) 
+          VALUES ('${categoryName}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+        `;
+        await runSql(insertQuery);
       }
+
       setOpen(false);
-      setCategoryName("");
-      setEditId(null);
-      setError(null);
-      setCurrentPage(1); // Reset to first page
-      await fetchCategories();
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
+      await loadCategories();
+    } catch (err) {
+      console.error("Error saving category:", err);
+      setError("Failed to save category.");
     }
-  };
+  }
 
-  // Delete
-  const handleDelete = async (id: number) => {
+  async function handleDelete(id: number) {
     try {
-      await runSql(`DELETE FROM categories WHERE id = ${id}`);
-      setCurrentPage(1); // Reset to first page
-      await fetchCategories();
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
+      const deleteQuery = `DELETE FROM product_categories WHERE id = ${id}`;
+      await runSql(deleteQuery);
+      await loadCategories();
+    } catch (err) {
+      console.error("Error deleting category:", err);
+      setError("Failed to delete category.");
     }
-  };
-
-  // Open dialog for new/edit
-  const openDialog = (cat?: Category) => {
-    setEditId(cat?.id || null);
-    setCategoryName(cat?.name || "");
-    setOpen(true);
-    setError(null);
-  };
-
-  const pageCount = Math.ceil(totalCount / PAGE_SIZE);
+  }
 
   return (
     <div>
@@ -112,28 +128,29 @@ export default function CategoriesPage() {
         <h2 className="text-2xl font-bold">Categories</h2>
         <Button onClick={() => openDialog()}>New Category</Button>
       </div>
-      {/* {loading && <div>Loading...</div>} */}
+
       {error && (
         <div className="mb-2 text-red-600">
           {error}
         </div>
       )}
+
       <div className="border rounded-lg shadow overflow-x-auto">
         <table className="min-w-full">
           <thead>
-            <tr className="">
+            <tr>
               <th className="px-4 py-2 text-left">Name</th>
               <th className="px-4 py-2 text-center">Products</th>
               <th className="px-4 py-2 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {categories.length === 0 && (
+            {categories?.length === 0 && (
               <tr>
                 <td colSpan={3} className="text-center py-6">No categories</td>
               </tr>
             )}
-            {categories.map(cat => (
+            {categories?.map(cat => (
               <tr key={cat.id} className="border-t">
                 <td className="px-4 py-2">{cat.name}</td>
                 <td className="px-4 py-2 text-center">{cat.product_count}</td>
@@ -156,12 +173,14 @@ export default function CategoriesPage() {
           </tbody>
         </table>
       </div>
+
       <PaginationSection
         page={currentPage}
         pageCount={pageCount}
         setPage={setCurrentPage}
         maxPagesToShow={5}
       />
+
       {/* Dialog for Create/Edit */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -182,7 +201,9 @@ export default function CategoriesPage() {
             <Button onClick={() => setOpen(false)} variant="secondary">
               Cancel
             </Button>
-            <Button onClick={handleSave}>{editId ? "Update" : "Create"}</Button>
+            <Button onClick={handleSave}>
+              {editId ? "Update" : "Create"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

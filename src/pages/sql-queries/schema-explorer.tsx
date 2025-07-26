@@ -43,7 +43,7 @@ const SchemaExplorer = () => {
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
       ) as any;
 
-      const tableNames = tableResult.rows.map((row: any) => row.name);
+      const tableNames = tableResult.map((row: any) => row.name);
 
       // Get schema and foreign keys for each table
       const tableSchemas: TableInfo[] = [];
@@ -52,8 +52,8 @@ const SchemaExplorer = () => {
         const fkResult = await runSql(`PRAGMA foreign_key_list("${tableName}")`) as any;
         tableSchemas.push({
           name: tableName,
-          schema: schemaResult.rows as ColumnInfo[],
-          foreignKeys: fkResult.rows as ForeignKeyInfo[],
+          schema: schemaResult as ColumnInfo[],
+          foreignKeys: fkResult as ForeignKeyInfo[],
         });
       }
 

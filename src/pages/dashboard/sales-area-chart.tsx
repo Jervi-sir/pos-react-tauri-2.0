@@ -28,11 +28,9 @@ const chartConfig = {
 
 export function SalesAreaChart() {
   const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [currency, setCurrency] = useState<string>("DZD");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Sanitize number inputs
   const sanitizeNumber = (value: number) => {
     const num = Number(value);
     if (isNaN(num) || !Number.isInteger(num) || num < 0) {
@@ -42,35 +40,29 @@ export function SalesAreaChart() {
   };
 
   useEffect(() => {
-    (async () => {
+    const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Fetch currency from store_info
-        const storeQuery = `SELECT currency FROM store_info WHERE id = 1`;
-        // @ts-ignore
-        const storeRes: { rows: { currency: string }[] } = await runSql(storeQuery);
-        setCurrency(storeRes.rows?.[0]?.currency || "DZD");
-
-        // Fetch revenue by day for last 30 days
         const limit = 30;
         const query = `
           SELECT substr(created_at, 1, 10) as date, SUM(total_price) as revenue
-          FROM sales
+          FROM invoices
+          WHERE invoice_type = 'sold'
           GROUP BY date
           ORDER BY date DESC
           LIMIT ${sanitizeNumber(limit)}
         `;
-        // @ts-ignore
-        const res: { rows: ChartData[] } = await runSql(query);
-        setChartData((res.rows || []).reverse());
+        const res = await runSql(query);
+        setChartData((res as ChartData[]).reverse());
       } catch (err) {
         console.error("Error fetching sales data:", err);
         setError("Failed to load sales data.");
       } finally {
         setLoading(false);
       }
-    })();
+    };
+    fetchData();
   }, []);
 
   return (
@@ -100,10 +92,7 @@ export function SalesAreaChart() {
                   <ChartTooltipContent
                     indicator="line"
                     labelFormatter={(val) => new Date(val).toLocaleDateString()}
-                    // @ts-ignore
-                    valueFormatter={(value) =>
-                      `${currency} ${Number(value).toFixed(2)}`
-                    }
+                    valueFormatter={(value) => `DZD ${Number(value).toFixed(2)}`}
                   />
                 }
               />
@@ -125,8 +114,7 @@ export function SalesAreaChart() {
               Trending up <TrendingUp className="h-4 w-4" />
             </div>
             <div className="text-muted-foreground">
-              {/* @ts-ignore */}
-              {chartData[0]?.date} - {chartData.at(-1)?.date}
+              {chartData[0]?.date} - {chartData[chartData.length - 1]?.date}
             </div>
           </div>
         </div>
