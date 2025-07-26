@@ -58,47 +58,53 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const offset = (page - 1) * PAGE_SIZE;
-      let where = "1=1";
-      if (search.trim())
-        where += ` AND (LOWER(p.name) LIKE '%${search.toLowerCase().replace(/'/g, "''")}%' OR p.barcode LIKE '%${search.replace(/'/g, "''")}%')`;
-      if (filterCategory !== "all")
-        where += ` AND p.category_id = ${Number(filterCategory)}`;
+  setLoading(true);
+  const startTime = performance.now(); // Start timing
 
-      const sortField = sortBy.startsWith("stock_left")
-        ? `stock_left ${sortBy.endsWith("DESC") ? "DESC" : "ASC"}`
-        : `p.${sortBy}`;
+  try {
+    const offset = (page - 1) * PAGE_SIZE;
+    let where = "1=1";
+    if (search.trim())
+      where += ` AND (LOWER(p.name) LIKE '%${search.toLowerCase().replace(/'/g, "''")}%' OR p.barcode LIKE '%${search.replace(/'/g, "''")}%')`;
+    if (filterCategory !== "all")
+      where += ` AND p.category_id = ${Number(filterCategory)}`;
 
-      const res: any = await runSql(`
-        SELECT
-          p.*,
-          c.name as category_name,
-          COALESCE((SELECT SUM(quantity) FROM stock_entries WHERE product_id = p.id), 0)
-            -
-          COALESCE((SELECT SUM(quantity) FROM sale_products WHERE product_id = p.id), 0)
-            AS stock_left
-        FROM products p
-        LEFT JOIN categories c ON c.id = p.category_id
-        WHERE ${where}
-        ORDER BY ${sortField}
-        LIMIT ${PAGE_SIZE} OFFSET ${offset}
-      `);
-      setProducts(res.rows || []);
+    const sortField = sortBy.startsWith("stock_left")
+      ? `stock_left ${sortBy.endsWith("DESC") ? "DESC" : "ASC"}`
+      : `p.${sortBy}`;
 
-      const countRes: any = await runSql(`
-        SELECT COUNT(*) as cnt
-        FROM products p
-        WHERE ${where}
-      `);
-      setTotalCount(countRes.rows?.[0]?.cnt || 0);
-    } catch (e: any) {
-      console.error(e?.message ?? "Failed to fetch products");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const res: any = await runSql(`
+      SELECT
+        p.*,
+        c.name as category_name,
+        COALESCE((SELECT SUM(quantity) FROM stock_entries WHERE product_id = p.id), 0)
+          -
+        COALESCE((SELECT SUM(quantity) FROM sale_products WHERE product_id = p.id), 0)
+          AS stock_left
+      FROM products p
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE ${where}
+      ORDER BY ${sortField}
+      LIMIT ${PAGE_SIZE} OFFSET ${offset}
+    `);
+    setProducts(res.rows || []);
+
+    const countRes: any = await runSql(`
+      SELECT COUNT(*) as cnt
+      FROM products p
+      WHERE ${where}
+    `);
+    setTotalCount(countRes.rows?.[0]?.cnt || 0);
+
+    const endTime = performance.now(); // End timing
+    const duration = endTime - startTime; // Calculate duration in milliseconds
+    console.log(`fetchProducts took ${duration.toFixed(2)} milliseconds`);
+  } catch (e: any) {
+    console.error(e?.message ?? "Failed to fetch products");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchCategories();

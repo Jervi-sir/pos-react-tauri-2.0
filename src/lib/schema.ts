@@ -38,9 +38,8 @@ const products = `
     category_id INTEGER NOT NULL,
     name VARCHAR(255) NOT NULL,
     barcode VARCHAR(255) NOT NULL,
-    image_base64 TEXT,
     price_unit DECIMAL(10,2) NOT NULL,
-    current_stock INTEGER DEFAULT 0,
+    image_base64 TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES categories(id)
@@ -150,6 +149,25 @@ const index_stock_entries_product_id = `
 const index_sale_products_product_id = `
   CREATE INDEX IF NOT EXISTS idx_sale_products_product_id ON sale_products(product_id);
 `;
+
+const index_products_category_id = `
+  CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
+`;
+const index_products_name = `
+  CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+`;
+const index_stock_entries_product_id_quantity = `
+  CREATE INDEX IF NOT EXISTS idx_stock_entries_product_id_quantity ON stock_entries(product_id, quantity);
+`;
+const index_sale_products_product_id_quantity = `
+  CREATE INDEX IF NOT EXISTS idx_sale_products_product_id_quantity ON sale_products(product_id, quantity);
+`;
+const index_products_sort_fields = `
+  CREATE INDEX IF NOT EXISTS idx_products_sort_fields ON products(name, barcode, price_unit);
+`;
+
+
+
 const insert_users = `
   INSERT INTO users (name, email, password, role, created_at, updated_at)
   SELECT 'Admin', 'gacembekhira@gmail.com', 'password', 'admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
@@ -180,6 +198,11 @@ export const schemaStatements = [
   index_sales_created_at,
   index_stock_entries_product_id,
   index_sale_products_product_id,
+  index_products_category_id,
+  index_products_name,
+  index_stock_entries_product_id_quantity,
+  index_sale_products_product_id_quantity,
+  index_products_sort_fields,
   insert_users,
   insert_store_info,
 ];

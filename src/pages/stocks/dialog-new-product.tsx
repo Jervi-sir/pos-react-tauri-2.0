@@ -128,33 +128,37 @@ export const DialogNewProduct = ({ open = false, setOpen, editProduct, setEditPr
         }
       } else {
         // Insert new product
-        await runSql(
+         await runSql(
           `INSERT INTO products 
           (name, barcode, category_id, price_unit, image_base64, created_at, updated_at)
-        VALUES (
-          '${productData.name.replace(/'/g, "''")}', 
-          '${productData.barcode.replace(/'/g, "''")}', 
-          ${productData.category_id}, 
-          ${productData.price_unit},
-          ${productData.image_base64 ? `'${productData.image_base64}'` : "NULL"}, 
-          '${new Date().toISOString()}', 
-          '${new Date().toISOString()}'
-        )`,
+          VALUES (
+            '${productData.name.replace(/'/g, "''")}', 
+            '${productData.barcode.replace(/'/g, "''")}', 
+            ${productData.category_id}, 
+            ${productData.price_unit},
+            ${productData.image_base64 ? `'${productData.image_base64}'` : "NULL"}, 
+            '${new Date().toISOString()}', 
+            '${new Date().toISOString()}'
+          )`,
           []
         );
-        // Get the last inserted ID
-        const result: any = await runSql(`SELECT last_insert_rowid() as id`, []);
+
+        // Retrieve the ID of the newly inserted product using the barcode
+        const result: any = await runSql(
+          `SELECT id FROM products WHERE barcode = '${productData.barcode.replace(/'/g, "''")}'`,
+          []
+        );
         const newProductId = result.rows?.[0]?.id;
         if (newProductId && Number(productData.quantity) > 0) {
           await runSql(
             `INSERT INTO stock_entries 
             (product_id, quantity, entry_type, created_at)
-          VALUES (
-            ${newProductId},
-            ${Number(productData.quantity)},
-            'manual',
-            '${new Date().toISOString()}'
-          )`,
+            VALUES (
+              ${newProductId},
+              ${Number(productData.quantity)},
+              'manual',
+              '${new Date().toISOString()}'
+            )`,
             []
           );
         }
