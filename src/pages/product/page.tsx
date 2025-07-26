@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { runSql } from "@/runSql";
 import { useDebounce } from "use-debounce";
 import { toast } from "sonner";
+import { routes } from "@/main";
 
 type Product = {
   id: number;
@@ -147,7 +148,7 @@ export default function SingleProductPage() {
   const handleSelectProduct = (productId: number) => {
     setSearchQuery("");
     setSearchResults([]);
-    navigate(`/products/${productId}`);
+    navigate(routes.productId + productId);
   };
 
   if (error) return <div className="container mx-auto py-10">Error: {error}</div>;

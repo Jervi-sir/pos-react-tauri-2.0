@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from "react";
 import { runSql } from "@/runSql";
-import { useAuth } from "../../context/auth-context";
-import { checkLowStock } from "../../context/low-stock-context";
+import { useAuth } from "../../../context/auth-context";
+import { checkLowStock } from "../../../context/low-stock-context";
 
 type Product = {
   id: number;

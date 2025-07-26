@@ -19,6 +19,7 @@ import { SelectLabel } from "@radix-ui/react-select";
 import { useDebounce } from "use-debounce";
 import { AdjustInventoryDialog } from "./adjust-inventory";
 import { useNavigate } from "react-router-dom";
+import { routes } from "@/main";
 
 // Define the Product type based on your schema
 type Product = {
@@ -142,7 +143,7 @@ export default function ProductsPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Products</h1>
         <NewProduct categories={categories} fetchProducts={fetchProducts} />
-        <Button onClick={() => navigate("/bulk-create-products")}>
+        <Button onClick={() => navigate(routes.BulkCreateProducts)}>
           Bulk Create Products
         </Button>
       </div>

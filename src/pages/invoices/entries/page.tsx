@@ -16,6 +16,7 @@ import { runSql } from "@/runSql";
 import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { routes } from "@/main";
 
 type Invoice = {
   id: number;
@@ -354,7 +355,7 @@ export default function EntryInvoicesPage() {
       <Button
         variant="outline"
         className="mt-4"
-        onClick={() => navigate("/pos")}
+        onClick={() => navigate(routes.pos)}
       >
         Back to POS
       </Button>

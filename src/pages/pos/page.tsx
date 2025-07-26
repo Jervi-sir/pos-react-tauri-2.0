@@ -18,6 +18,7 @@ import { runSql } from "@/runSql";
 import { useDebounce } from "use-debounce";
 import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
+import { routes } from "@/main";
 
 type Product = {
   id: number;
@@ -487,7 +488,7 @@ export default function PosPage() {
       <Button
         variant="outline"
         className="mt-4 ml-4"
-        onClick={() => navigate("/products")}
+        onClick={() => navigate(routes.product)}
       >
         Back to Products
       </Button>

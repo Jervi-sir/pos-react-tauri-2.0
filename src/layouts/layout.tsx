@@ -15,11 +15,12 @@ import { StoreInfoProvider } from '../context/store-info-context';
 import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LoadingScreen from './loading-screen';
+import { routes } from '@/main';
 
 const AppLayout = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const isActive = location.pathname === "/settings";
+  const isActive = location.pathname === routes.settings;
 
   if (loading) return <LoadingScreen />;
   if (!user) return <LoginPage />;
@@ -39,7 +40,7 @@ const AppLayout = () => {
               <div className="ml-auto space-x-3" >
                 <ModeToggle />
                 <Button variant={isActive ? 'default' : 'outline'} size={'icon'} >
-                  <Link to={"/settings"} >
+                  <Link to={routes.settings} >
                     <Settings className="h-[1.2rem] w-[1.2rem] transition-all" />
                   </Link>
                 </Button>

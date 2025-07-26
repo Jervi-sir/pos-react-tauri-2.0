@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useStoreInfo } from '../context/store-info-context';
 import { useTheme } from '@/components/theme-provider';
+import { routes } from '@/main';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, logout } = useAuth();
@@ -17,22 +18,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   // Define navigation items with canAccess as an array of roles
   const data = [
-    { name: 'Dashboard [done]', url: '/', icon: PanelBottom, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Inventory [done]', url: '/product-inventory', icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Product [done]', url: '/products', icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Dashboard', url: routes.dashboard, icon: PanelBottom, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Inventory', url: routes.productInventory, icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Product', url: routes.product, icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
   ];
 
   const salesData = [
-    { name: 'Pos [done]', url: '/pos', icon: User2, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Invoices [done]', url: '/invoices', icon: PieChart, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Invoices Entries', url: '/invoices/entries', icon: PieChart, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Pos', url: routes.pos, icon: User2, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Invoices', url: routes.invoicesSales, icon: PieChart, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Invoices Entries', url: routes.invoicesEntries, icon: PieChart, canAccess: ['owner', 'admin', 'cashier'] },
   ];
 
   const adminData = [
-    { name: 'Users [done]', url: '/users', icon: Map, canAccess: ['admin'] },
-    { name: 'Categories [done]', url: '/categories', icon: Map, canAccess: ['admin'] },
-    { name: 'Sql Queries', url: '/sql', icon: TerminalIcon, canAccess: ['admin'] },
-    { name: 'Sql Explorer', url: '/sql-explorer', icon: TerminalIcon, canAccess: ['admin'] },
+    { name: 'Users', url: routes.users, icon: Map, canAccess: ['admin'] },
+    { name: 'Categories', url: routes.categories, icon: Map, canAccess: ['admin'] },
+    { name: 'Sql Queries', url: routes.sql, icon: TerminalIcon, canAccess: ['admin'] },
+    { name: 'Sql Explorer', url: routes.sqlExplorer, icon: TerminalIcon, canAccess: ['admin'] },
   ];
 
   return (

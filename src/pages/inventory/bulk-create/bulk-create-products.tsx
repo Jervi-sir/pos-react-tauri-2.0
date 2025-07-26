@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { runSql } from "@/runSql";
 import { toast } from "sonner";
+import { routes } from "@/main";
 
 type Category = {
   id: number;
@@ -215,7 +216,7 @@ export default function BulkCreateProducts() {
 
       toast.success("Products saved successfully!");
       setProducts([]);
-      navigate("/product-inventory");
+      navigate(routes.productInventory);
     } catch (err) {
       console.error("Error saving products:", err);
       toast.error(`Failed to save products: ${(err as Error).message}`);
@@ -277,7 +278,7 @@ export default function BulkCreateProducts() {
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Bulk Create Products</h1>
-        <Button variant="outline" onClick={() => navigate("/product-inventory")}>
+        <Button variant="outline" onClick={() => navigate(routes.productInventory)}>
           Back to Inventory
         </Button>
       </div>
