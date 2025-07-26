@@ -1,4 +1,3 @@
-// src/pages/SalesPage.tsx
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { runSql } from "@/runSql";
-import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ExportSalesDialog } from "./export-sale-invoices-dialog";
@@ -31,9 +29,11 @@ type Invoice = {
   invoice_type: string;
   total_quantity: number;
   total_price: number;
-  user_id: number;
+  user_id: number; // Keep user_id for reference
+  user_name?: string; // Change to string and make optional
   created_at: string;
 };
+
 
 type SoldProduct = {
   id: number;
@@ -109,13 +109,14 @@ export default function SalesPage() {
     try {
       // First, get the total count of invoices for pagination
       let countQuery = `
-        SELECT COUNT(DISTINCT i.id) as total
-        FROM invoices i
-        JOIN sold_products sp ON i.id = sp.invoice_id
-        JOIN products p ON sp.product_id = p.id
-        WHERE 1=1
-        AND i.invoice_type = 'sold'
-      `;
+      SELECT COUNT(DISTINCT i.id) as total
+      FROM invoices i
+      JOIN sold_products sp ON i.id = sp.invoice_id
+      JOIN products p ON sp.product_id = p.id
+      LEFT JOIN users u ON i.user_id = u.id
+      WHERE 1=1
+      AND i.invoice_type = 'sold'
+    `;
 
       if (selectedCategory !== "all") {
         countQuery += ` AND p.category_id = ${parseInt(selectedCategory)}`;
@@ -143,13 +144,15 @@ export default function SalesPage() {
 
       // Now fetch the paginated invoices
       let query = `
-        SELECT DISTINCT i.id, i.invoice_type, i.total_quantity, i.total_price, i.user_id, i.created_at
-        FROM invoices i
-        JOIN sold_products sp ON i.id = sp.invoice_id
-        JOIN products p ON sp.product_id = p.id
-        WHERE 1=1
-        AND i.invoice_type = 'sold'
-      `;
+      SELECT DISTINCT i.id, i.invoice_type, i.total_quantity, i.total_price, i.user_id, 
+             u.name AS user_name, i.created_at
+      FROM invoices i
+      JOIN sold_products sp ON i.id = sp.invoice_id
+      JOIN products p ON sp.product_id = p.id
+      LEFT JOIN users u ON i.user_id = u.id
+      WHERE 1=1
+      AND i.invoice_type = 'sold'
+    `;
 
       if (selectedCategory !== "all") {
         query += ` AND p.category_id = ${parseInt(selectedCategory)}`;
@@ -184,6 +187,7 @@ export default function SalesPage() {
     }
   };
 
+
   // Fetch sold products for a specific invoice
   const fetchSoldProducts = async (invoiceId: number) => {
     try {
@@ -203,11 +207,40 @@ export default function SalesPage() {
   };
 
   // Print receipt
-  const handlePrint = useReactToPrint({
-    // @ts-ignore
-    content: () => printRef.current,
-    documentTitle: `Receipt_${selectedInvoice?.id || "unknown"}_${new Date().toISOString()}`,
-  });
+  const handlePrint = () => {
+    if (!printRef.current || !selectedInvoice) return;
+
+    const printContents = printRef.current.innerHTML;
+    const win = window.open("", "PRINT", "height=600,width=800");
+    if (win) {
+      win.document.write(`
+      <html>
+        <head>
+          <title>Receipt_${selectedInvoice.id}_${new Date().toISOString()}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 2rem; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 8px; }
+            th { background: #f0f0f0; text-align: left; }
+            .text-right { text-align: right; }
+            .font-bold { font-weight: bold; }
+            .text-center { text-center: center; }
+            img { max-width: 100px; max-height: 100px; }
+          </style>
+        </head>
+        <body>
+          ${printContents}
+        </body>
+      </html>
+    `);
+      win.document.close();
+      win.focus();
+      win.print();
+      setTimeout(() => win.close(), 500);
+    } else {
+      toast.error("Failed to open print window.");
+    }
+  };
 
   // Handle invoice click
   const handleInvoiceClick = (invoice: Invoice) => {
@@ -280,7 +313,7 @@ export default function SalesPage() {
               <SelectItem value="all">All Users</SelectItem>
               {users.map((user) => (
                 <SelectItem key={user.id} value={user.id.toString()}>
-                  {user.name} (ID: {user.id})
+                  {user.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -321,8 +354,8 @@ export default function SalesPage() {
               <TableHead>Date</TableHead>
               <TableHead>Total Quantity</TableHead>
               <TableHead>Total Price</TableHead>
-              <TableHead>User ID</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead>User</TableHead>
+              <TableHead className="text-right px-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -337,8 +370,8 @@ export default function SalesPage() {
                   <TableCell>{format(new Date(invoice.created_at), "PPP p")}</TableCell>
                   <TableCell>{invoice.total_quantity}</TableCell>
                   <TableCell>${invoice.total_price.toFixed(2)}</TableCell>
-                  <TableCell>{invoice.user_id}</TableCell>
-                  <TableCell>
+                  <TableCell>{invoice.user_name || `Unknown (ID: ${invoice.user_id})`}</TableCell> {/* Display user_name */}
+                  <TableCell className="text-right">
                     <Button
                       variant="outline"
                       size="sm"
@@ -441,7 +474,7 @@ export default function SalesPage() {
             {storeInfo?.address && <p>{storeInfo.address}</p>}
             {storeInfo?.phone && <p>Phone: {storeInfo.phone}</p>}
             {storeInfo?.email && <p>Email: {storeInfo.email}</p>}
-            {storeInfo?.tax_id && <p>Tax ID: {storeInfo.tax_id}</p>}
+            {/* {storeInfo?.tax_id && <p>Tax ID: {storeInfo.tax_id}</p>} */}
           </div>
           <h2 className="text-xl font-semibold mt-6">
             {selectedInvoice?.invoice_type} Receipt #{selectedInvoice?.id}

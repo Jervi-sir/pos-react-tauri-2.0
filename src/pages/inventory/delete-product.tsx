@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { runSql } from "@/runSql";
+import { Trash } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -45,7 +46,7 @@ export const DeleteProductDialog = ({ product, fetchProducts }: DeleteProductDia
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="destructive" size="sm">
-          Delete
+          <Trash />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">

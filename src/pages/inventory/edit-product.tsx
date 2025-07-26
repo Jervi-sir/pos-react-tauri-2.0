@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { runSql } from "@/runSql";
+import { Edit2, Edit3 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -153,7 +154,7 @@ export const EditProductDialog = ({ product, fetchProducts }: EditProductDialogP
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          Edit
+          <Edit3 />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">

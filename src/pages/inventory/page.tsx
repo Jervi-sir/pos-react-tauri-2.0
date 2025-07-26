@@ -21,6 +21,7 @@ import { AdjustInventoryDialog } from "./adjust-inventory";
 import { useNavigate } from "react-router-dom";
 import { routes } from "@/main";
 import { ExportProductsDialog } from "./export-dialog";
+import { Eye } from "lucide-react";
 
 // Define the Product type based on your schema
 type Product = {
@@ -232,7 +233,10 @@ export default function ProductsPage() {
                   <td className="px-4 py-2">{product.category_name || "N/A"}</td>
                   <td className="px-4 py-2">${product.current_price_unit.toFixed(2)}</td>
                   <td className="px-4 py-2">{product.quantity}</td>
-                  <td className="px-4 py-2 text-center">
+                  <td className="px-4 py-2 text-right space-x-2">
+                    <Button variant={'link'} size={'sm'} onClick={() => navigate(routes.productId + product.id)}>
+                      <Eye />
+                    </Button>
                     <AdjustInventoryDialog
                       product={{
                         id: product.id,

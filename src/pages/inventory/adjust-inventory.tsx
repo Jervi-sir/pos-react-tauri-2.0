@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { runSql } from "@/runSql";
+import { PackageOpen, SendToBackIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -77,26 +78,6 @@ export const AdjustInventoryDialog = ({ product, fetchProducts }: AdjustInventor
       `;
       await runSql(historyQuery);
 
-      // Preferred: Parameterized queries (uncomment if runSql supports parameters)
-      // const updateQuery = `
-      //   UPDATE products 
-      //   SET quantity = ?, updated_at = CURRENT_TIMESTAMP
-      //   WHERE id = ?
-      // `;
-      // await runSql(updateQuery, [newQuantity, product.id]);
-      //
-      // const historyQuery = `
-      //   INSERT INTO history_product_entries (product_id, invoice_id, quantity, purchase_price, entry_type)
-      //   VALUES (?, ?, ?, ?, ?)
-      // `;
-      // await runSql(historyQuery, [
-      //   product.id,
-      //   null,
-      //   historyQuantity,
-      //   product.current_price_unit,
-      //   "correction",
-      // ]);
-
       toast(`Stock for "${product.name}" ${adjustmentType === "add" ? "increased" : "decreased"} by ${qty} units.`);
       setError(null);
       setQuantity("");
@@ -117,7 +98,7 @@ export const AdjustInventoryDialog = ({ product, fetchProducts }: AdjustInventor
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          Adjust Stock
+          <PackageOpen />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">

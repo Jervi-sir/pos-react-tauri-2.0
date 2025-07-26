@@ -1,4 +1,3 @@
-// src/pages/POS.tsx
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +12,9 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
-import { runSql } from "@/runSql";
 import { useDebounce } from "use-debounce";
-import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
+import { runSql } from "@/runSql";
 
 type Product = {
   id: number;
@@ -32,8 +30,8 @@ type SaleItem = {
   name: string;
   barcode: string | null;
   price_unit: number;
-  quantity: number; // Editable quantity for sale
-  stock: number; // Available stock
+  quantity: number;
+  stock: number;
   image_base64: string | null;
 };
 
@@ -46,16 +44,134 @@ type StoreInfo = {
   logo_base64: string | null;
 };
 
+// New ReceiptPrintDialog component
+type ReceiptPrintDialogProps = {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  saleItems: SaleItem[];
+  storeInfo: StoreInfo | null;
+  invoiceId?: number;
+};
+
+function ReceiptPrintDialog({ open, onOpenChange, saleItems, storeInfo, invoiceId }: ReceiptPrintDialogProps) {
+  const receiptRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = () => {
+    if (!receiptRef.current) return;
+    const printContents = receiptRef.current.innerHTML;
+    const win = window.open("", "PRINT", "height=600,width=800");
+    if (win) {
+      win.document.write(`
+        <html>
+          <head>
+            <title>Sale Receipt</title>
+            <style>
+              body { font-family: sans-serif; margin: 2rem; font-size: 12px; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { border: 1px solid #aaa; padding: 4px 8px; }
+              th { background: #f6f6f6; }
+              .text-right { text-align: right; }
+              .font-bold { font-weight: bold; }
+              .text-lg { font-size: 18px; }
+              .mb-1 { margin-bottom: 0.25rem; }
+              .mb-2 { margin-bottom: 0.5rem; }
+            </style>
+          </head>
+          <body>
+            ${printContents}
+          </body>
+        </html>
+      `);
+      win.document.close();
+      win.focus();
+      win.print();
+      setTimeout(() => win.close(), 500);
+    } else {
+      toast.error("Failed to open print window.");
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Receipt Preview</DialogTitle>
+        </DialogHeader>
+        <div ref={receiptRef} id="receipt-print-area" className="text-sm">
+          {saleItems.length > 0 ? (
+            <>
+              <div className="text-center mb-2">
+                {storeInfo?.logo_base64 && (
+                  <img
+                    src={storeInfo.logo_base64}
+                    alt="Store Logo"
+                    style={{ maxWidth: "100px", maxHeight: "100px" }}
+                  />
+                )}
+                <div className="font-bold text-lg">{storeInfo?.name || "Store Name"}</div>
+                {storeInfo?.address && <div>{storeInfo.address}</div>}
+                {storeInfo?.phone && <div>Phone: {storeInfo.phone}</div>}
+                {storeInfo?.email && <div>Email: {storeInfo.email}</div>}
+                {/* {storeInfo?.tax_id && <div>Tax ID: {storeInfo.tax_id}</div>} */}
+              </div>
+              <div className="font-bold text-lg mb-1">Receipt #{invoiceId || "N/A"}</div>
+              <div>Date: {new Date().toLocaleString()}</div>
+              <table className="min-w-full mt-3 mb-2 border">
+                <thead>
+                  <tr>
+                    <th className="text-left p-1">Product</th>
+                    <th className="text-left p-1">Barcode</th>
+                    <th className="text-right p-1">Qty</th>
+                    <th className="text-right p-1">Unit</th>
+                    <th className="text-right p-1">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {saleItems.map((item) => (
+                    <tr key={item.product_id}>
+                      <td className="p-1">{item.name}</td>
+                      <td className="p-1">{item.barcode || "N/A"}</td>
+                      <td className="p-1 text-right">{item.quantity}</td>
+                      <td className="p-1 text-right">${item.price_unit.toFixed(2)}</td>
+                      <td className="p-1 text-right">${(item.quantity * item.price_unit).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="text-right font-bold mt-2">
+                TOTAL: ${saleItems.reduce((sum, item) => sum + item.quantity * item.price_unit, 0).toFixed(2)}
+              </div>
+            </>
+          ) : (
+            <div className="py-8 text-center text-gray-500">No sale items</div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button onClick={handlePrint} disabled={saleItems.length === 0}>
+            Print Receipt
+          </Button>
+          <Button variant="secondary" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function PosPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
+  const [lastSaleItems, setLastSaleItems] = useState<SaleItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
+  const [saleCompleted, setSaleCompleted] = useState(false);
   const [openConfirmModal, setOpenConfirmModal] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
+  const [openPrintDialog, setOpenPrintDialog] = useState(false);
+  const [lastInvoiceId, setLastInvoiceId] = useState<number | undefined>(undefined);
 
   // Fetch store info
   const fetchStoreInfo = async () => {
@@ -64,7 +180,7 @@ export default function PosPage() {
       const result = await runSql(query);
       // @ts-ignore
       if (result.length) {
-      // @ts-ignore
+        // @ts-ignore
         setStoreInfo(result[0] as StoreInfo);
       }
     } catch (err) {
@@ -72,7 +188,7 @@ export default function PosPage() {
     }
   };
 
-  // Fetch search results for preview and auto-add on exact barcode match
+  // Fetch search results
   const fetchSearchResults = async (query: string) => {
     if (!query) {
       setSearchResults([]);
@@ -87,14 +203,10 @@ export default function PosPage() {
         LIMIT 10
       `;
       const results = await runSql(searchQuery);
-
-      // Check for exact barcode match
-      // @ts-ignore
       const exactMatch = results.find((product: Product) => product.barcode === query);
       if (exactMatch) {
         const existingItem = saleItems.find((item) => item.product_id === exactMatch.id);
         if (existingItem) {
-          // Increment quantity if within stock
           if (existingItem.quantity < existingItem.stock) {
             setSaleItems((items) =>
               items.map((item) =>
@@ -108,7 +220,6 @@ export default function PosPage() {
             toast.error(`Cannot add more ${existingItem.name}. Stock limit: ${existingItem.stock}.`);
           }
         } else {
-          // Add new item with quantity 1
           setSaleItems([
             ...saleItems,
             {
@@ -135,11 +246,10 @@ export default function PosPage() {
     }
   };
 
-  // Add product to sale (for manual selection from preview)
+  // Add product to sale
   const addToSale = (product: Product) => {
     const existingItem = saleItems.find((item) => item.product_id === product.id);
     if (existingItem) {
-      // Increment quantity if within stock
       if (existingItem.quantity < existingItem.stock) {
         setSaleItems((items) =>
           items.map((item) =>
@@ -153,7 +263,6 @@ export default function PosPage() {
         toast.error(`Cannot add more ${existingItem.name}. Stock limit: ${existingItem.stock}.`);
       }
     } else {
-      // Add new item with quantity 1
       setSaleItems([
         ...saleItems,
         {
@@ -172,7 +281,7 @@ export default function PosPage() {
     setSearchResults([]);
   };
 
-  // Update quantity for a sale item
+  // Update quantity
   const updateQuantity = (product_id: number, newQuantity: string) => {
     const qty = parseInt(newQuantity, 10);
     setSaleItems((items) =>
@@ -187,7 +296,7 @@ export default function PosPage() {
     );
   };
 
-  // Remove item from sale
+  // Remove item
   const removeItem = (product_id: number) => {
     setSaleItems((items) => items.filter((item) => item.product_id !== product_id));
     toast.success("Item removed from sale.");
@@ -196,6 +305,15 @@ export default function PosPage() {
   // Calculate total
   const calculateTotal = () => {
     return saleItems.reduce((sum, item) => sum + item.quantity * item.price_unit, 0).toFixed(2);
+  };
+
+  // Sanitize number inputs to prevent SQL injection
+  const sanitizeNumber = (value: number) => {
+    const num = Number(value);
+    if (isNaN(num) || !Number.isInteger(num) || num < 0) {
+      throw new Error("Invalid number input");
+    }
+    return num;
   };
 
   // Complete sale
@@ -215,53 +333,51 @@ export default function PosPage() {
 
     setLoading(true);
     try {
-      const user_id = 1; // Replace with actual user_id from auth system
+      const user_id = 1; // Replace with actual user_id
       const total_quantity = saleItems.reduce((sum, item) => sum + item.quantity, 0);
       const total_price = parseFloat(calculateTotal());
 
-      // Insert invoice
       const invoiceQuery = `
         INSERT INTO invoices (invoice_type, total_quantity, total_price, user_id)
-        VALUES ('sold', ${total_quantity}, ${total_price}, ${user_id})
+        VALUES ('sold', ${sanitizeNumber(total_quantity)}, ${total_price}, ${sanitizeNumber(user_id)})
       `;
       await runSql(invoiceQuery);
 
-      // Get the new invoice ID
-      const invoiceIdQuery = `SELECT id FROM invoices ORDER BY id DESC LIMIT 1`;
+      const invoiceIdQuery = `SELECT id FROM invoices ORDER BY ID DESC LIMIT 1`;
       const invoiceResult = await runSql(invoiceIdQuery);
       // @ts-ignore
       const invoice_id = invoiceResult[0].id;
+      setLastInvoiceId(invoice_id);
 
-      // Insert sold_products and update stock
       for (const item of saleItems) {
         const total_item_price = (item.quantity * item.price_unit).toFixed(2);
         const soldProductQuery = `
           INSERT INTO sold_products (product_id, invoice_id, quantity, total_price, price_unit)
-          VALUES (${item.product_id}, ${invoice_id}, ${item.quantity}, ${total_item_price}, ${item.price_unit})
+          VALUES (${sanitizeNumber(item.product_id)}, ${sanitizeNumber(invoice_id)}, ${sanitizeNumber(item.quantity)}, ${total_item_price}, ${item.price_unit})
         `;
         await runSql(soldProductQuery);
 
-        // Update product stock
         const newStock = item.stock - item.quantity;
         const updateStockQuery = `
           UPDATE products 
-          SET quantity = ${newStock}, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${item.product_id}
+          SET quantity = ${sanitizeNumber(newStock)}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${sanitizeNumber(item.product_id)}
         `;
         await runSql(updateStockQuery);
 
-        // Insert history entry
         const historyQuery = `
           INSERT INTO history_product_entries (product_id, invoice_id, quantity, purchase_price, entry_type)
-          VALUES (${item.product_id}, ${invoice_id}, ${-item.quantity}, ${item.price_unit}, 'purchase')
+          VALUES (${sanitizeNumber(item.product_id)}, ${sanitizeNumber(invoice_id)}, ${-sanitizeNumber(item.quantity)}, ${item.price_unit}, 'purchase')
         `;
         await runSql(historyQuery);
       }
 
-      toast.success("Sale completed successfully.");
+      setLastSaleItems(saleItems);
       setSaleItems([]);
       setError(null);
       setOpenConfirmModal(false);
+      setSaleCompleted(true);
+      setOpenPrintDialog(true); // Open print dialog instead of printing directly
     } catch (err) {
       console.error("Error completing sale:", err);
       setError(`Failed to complete sale: ${(err as Error).message}`);
@@ -271,12 +387,16 @@ export default function PosPage() {
     }
   };
 
-  // Print invoice
-  const handlePrint = useReactToPrint({
-    // @ts-ignore
-    content: () => printRef.current,
-    documentTitle: `Invoice_${new Date().toISOString()}`,
-  });
+  // Start new session
+  const startNewSession = () => {
+    setSaleCompleted(false);
+    setLastSaleItems([]);
+    setLastInvoiceId(undefined);
+    setSearchQuery("");
+    setSearchResults([]);
+    setError(null);
+    toast.success("Started a new session.");
+  };
 
   useEffect(() => {
     fetchStoreInfo();
@@ -294,7 +414,6 @@ export default function PosPage() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full sm:w-[400px]"
         />
-        {/* Search Results Preview */}
         {searchResults.length > 0 && (
           <div className="border rounded-md shadow mt-2 max-h-[200px] overflow-y-auto">
             <Table>
@@ -311,7 +430,7 @@ export default function PosPage() {
                   <TableRow
                     key={product.id}
                     onClick={() => addToSale(product)}
-                    className="cursor-pointer hover:bg-gray-100"
+                    className="cursor-pointer"
                   >
                     <TableCell>
                       {product.image_base64 ? (
@@ -348,7 +467,7 @@ export default function PosPage() {
               <TableHead>Stock</TableHead>
               <TableHead>Quantity</TableHead>
               <TableHead>Total</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead className="text-right px-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -383,7 +502,7 @@ export default function PosPage() {
                     />
                   </TableCell>
                   <TableCell>${(item.quantity * item.price_unit).toFixed(2)}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-right">
                     <Button
                       variant="destructive"
                       size="sm"
@@ -433,55 +552,24 @@ export default function PosPage() {
           </DialogContent>
         </Dialog>
       </div>
-      {/* Printable Invoice */}
-      <div style={{ display: "none" }}>
-        <div ref={printRef} className="p-6">
-          <div className="text-center">
-            {storeInfo?.logo_base64 && (
-              <img
-                src={storeInfo.logo_base64}
-                alt="Store Logo"
-                className="w-24 h-24 mx-auto mb-4"
-              />
-            )}
-            <h1 className="text-2xl font-bold">{storeInfo?.name || "Store Name"}</h1>
-            {storeInfo?.address && <p>{storeInfo.address}</p>}
-            {storeInfo?.phone && <p>Phone: {storeInfo.phone}</p>}
-            {storeInfo?.email && <p>Email: {storeInfo.email}</p>}
-            {storeInfo?.tax_id && <p>Tax ID: {storeInfo.tax_id}</p>}
-          </div>
-          <h2 className="text-xl font-semibold mt-6">Sale Receipt</h2>
-          <p>Date: {new Date().toLocaleString()}</p>
-          <Table className="mt-4">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Price/Unit</TableHead>
-                <TableHead>Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {saleItems.map((item) => (
-                <TableRow key={item.product_id}>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>{item.quantity}</TableCell>
-                  <TableCell>${item.price_unit.toFixed(2)}</TableCell>
-                  <TableCell>${(item.quantity * item.price_unit).toFixed(2)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <div className="text-right mt-4">
-            <p className="font-semibold">Total: ${calculateTotal()}</p>
-          </div>
+      {/* Print and New Session Buttons */}
+      {saleCompleted && (
+        <div className="flex flex-col gap-2 mt-4">
+          <Button onClick={() => setOpenPrintDialog(true)} disabled={lastSaleItems.length === 0}>
+            Preview Receipt
+          </Button>
+          <Button onClick={startNewSession} variant="outline">
+            New Session
+          </Button>
         </div>
-      </div>
-      {saleItems.length > 0 && (
-        <Button onClick={handlePrint} className="mt-4">
-          Print Receipt
-        </Button>
       )}
+      <ReceiptPrintDialog
+        open={openPrintDialog}
+        onOpenChange={setOpenPrintDialog}
+        saleItems={lastSaleItems}
+        storeInfo={storeInfo}
+        invoiceId={lastInvoiceId}
+      />
     </>
   );
 }

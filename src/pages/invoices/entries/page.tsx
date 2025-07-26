@@ -19,7 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { runSql } from "@/runSql";
-import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ExportEntryInvoicesDialog } from "./export-entry-invoices-dialog";
@@ -32,6 +31,7 @@ type Invoice = {
   total_quantity: number;
   total_price: number;
   user_id: number;
+  user_name?: string; // Add user_name to store the user's name
   created_at: string;
 };
 
@@ -91,7 +91,7 @@ export default function EntryInvoicesPage() {
     }
   };
 
-  // Fetch users
+  // Fetch users (unchanged)
   const fetchUsers = async () => {
     try {
       const query = `SELECT id, name FROM users ORDER BY name`;
@@ -144,14 +144,15 @@ export default function EntryInvoicesPage() {
   // Fetch invoices with pagination
   const fetchInvoices = async () => {
     try {
-      // Calculate offset for pagination
       const offset = (page - 1) * pageSize;
 
       let query = `
-        SELECT DISTINCT i.id, i.invoice_type, i.total_quantity, i.total_price, i.user_id, i.created_at
+        SELECT DISTINCT i.id, i.invoice_type, i.total_quantity, i.total_price, i.user_id, 
+               u.name AS user_name, i.created_at
         FROM invoices i
-        LEFT JOIN sold_products sp ON i.id = sp.invoice_id
-        LEFT JOIN products p ON sp.product_id = p.id
+        LEFT JOIN history_product_entries hpe ON i.id = hpe.invoice_id
+        LEFT JOIN products p ON hpe.product_id = p.id
+        LEFT JOIN users u ON i.user_id = u.id
         WHERE i.invoice_type = 'bought'
       `;
       if (startDate) {
@@ -177,7 +178,6 @@ export default function EntryInvoicesPage() {
       console.log("Fetch Invoices Results:", results); // Debug
       setInvoices(results as Invoice[]);
 
-      // Fetch total invoice count to calculate pageCount
       const totalInvoices = await fetchInvoiceCount();
       setPageCount(Math.ceil(totalInvoices / pageSize));
     } catch (err) {
@@ -191,14 +191,15 @@ export default function EntryInvoicesPage() {
   const fetchSoldProducts = async (invoiceId: number) => {
     try {
       const query = `
-        SELECT sp.id, sp.product_id, p.name, sp.quantity, sp.price_unit, sp.total_price, p.image_base64
-        FROM sold_products sp
-        JOIN products p ON sp.product_id = p.id
-        WHERE sp.invoice_id = ${invoiceId}
+        SELECT hpe.id, hpe.product_id, p.name, hpe.quantity, hpe.purchase_price AS price_unit, 
+              (hpe.quantity * hpe.purchase_price) AS total_price, p.image_base64
+        FROM history_product_entries hpe
+        JOIN products p ON hpe.product_id = p.id
+        WHERE hpe.invoice_id = ${invoiceId}
       `;
-      console.log("Fetch Sold Products Query:", query); // Debug
+      console.log("Fetch Purchase Products Query:", query); // Debug
       const results = await runSql(query);
-      console.log("Fetch Sold Products Results:", results); // Debug
+      console.log("Fetch Purchase Products Results:", results); // Debug
       setSoldProducts(results as SoldProduct[]);
     } catch (err) {
       console.error("Error fetching products:", err);
@@ -207,12 +208,45 @@ export default function EntryInvoicesPage() {
     }
   };
 
+
+
   // Print receipt
-  const handlePrint = useReactToPrint({
-    // @ts-ignore
-    content: () => printRef.current,
-    documentTitle: `Purchase_Receipt_${selectedInvoice?.id || "unknown"}_${new Date().toISOString()}`,
-  });
+  const handlePrint = () => {
+    if (!printRef.current || !selectedInvoice) return;
+
+    const printContents = printRef.current.innerHTML;
+    const win = window.open("", "PRINT", "height=600,width=800");
+    if (win) {
+      win.document.write(`
+      <html>
+        <head>
+          <title>Receipt_${selectedInvoice.id}_${new Date().toISOString()}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 2rem; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 8px; }
+            th { background: #f0f0f0; text-align: left; }
+            .text-right { text-align: right; }
+            .font-bold { font-weight: bold; }
+            .text-center { text-center: center; }
+            img { max-width: 100px; max-height: 100px; }
+          </style>
+        </head>
+        <body>
+          ${printContents}
+        </body>
+      </html>
+    `);
+      win.document.close();
+      win.focus();
+      win.print();
+      setTimeout(() => win.close(), 500);
+    } else {
+      toast.error("Failed to open print window.");
+    }
+  };
+
+
 
   // Handle invoice click
   const handleInvoiceClick = (invoice: Invoice) => {
@@ -282,7 +316,7 @@ export default function EntryInvoicesPage() {
               <SelectItem value="all">All Users</SelectItem>
               {users.map((user) => (
                 <SelectItem key={user.id} value={user.id.toString()}>
-                  {user.name} (ID: {user.id})
+                  {user.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -319,8 +353,8 @@ export default function EntryInvoicesPage() {
               <TableHead>Date</TableHead>
               <TableHead>Total Quantity</TableHead>
               <TableHead>Total Price</TableHead>
-              <TableHead>User ID</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead>User</TableHead>
+              <TableHead className="text-right px-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -335,8 +369,8 @@ export default function EntryInvoicesPage() {
                   <TableCell>{format(new Date(invoice.created_at), "PPP p")}</TableCell>
                   <TableCell>{invoice.total_quantity}</TableCell>
                   <TableCell>${invoice.total_price.toFixed(2)}</TableCell>
-                  <TableCell>{invoice.user_id}</TableCell>
-                  <TableCell>
+                  <TableCell>{invoice.user_name || `Unknown (ID: ${invoice.user_id})`}</TableCell>
+                  <TableCell className="text-right">
                     <Button
                       variant="outline"
                       size="sm"
@@ -447,7 +481,7 @@ export default function EntryInvoicesPage() {
             {storeInfo?.address && <p>{storeInfo.address}</p>}
             {storeInfo?.phone && <p>Phone: {storeInfo.phone}</p>}
             {storeInfo?.email && <p>Email: {storeInfo.email}</p>}
-            {storeInfo?.tax_id && <p>Tax ID: {storeInfo.tax_id}</p>}
+            {/* {storeInfo?.tax_id && <p>Tax ID: {storeInfo.tax_id}</p>} */}
           </div>
           <h2 className="text-xl font-semibold mt-6">Purchase Receipt #{selectedInvoice?.id}</h2>
           <p>Date: {selectedInvoice && format(new Date(selectedInvoice.created_at), "PPP p")}</p>
