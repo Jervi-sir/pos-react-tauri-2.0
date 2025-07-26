@@ -15,22 +15,12 @@ export async function checkLowStock() {
   console.log("checkLowStock started");
   const query = `
     SELECT COUNT(*) as low_stock_count
-    FROM (
-        SELECT product_id
-        FROM (
-            SELECT product_id, quantity
-            FROM stock_entries
-            UNION ALL
-            SELECT product_id, -quantity
-            FROM sale_products
-        ) s
-        GROUP BY product_id
-        HAVING SUM(quantity) <= 5
-    ) low_stock;
+    FROM products
+    WHERE quantity <= 5;
   `;
   try {
     const res: any = await runSql(query);
-    const count = res.rows?.[0]?.low_stock_count || 0;
+    const count = res[0]?.low_stock_count || 0;
 
     if (count > 0 && count !== lastCount) {
       toast(`Low Stock Alert`, {

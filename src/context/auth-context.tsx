@@ -33,11 +33,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    // TODO: In production, use password hashing/verification!
     const res: any = await runSql(
       `SELECT id, name, email, role FROM users WHERE email = '${email.replace(/'/g, "''")}' AND password = '${password.replace(/'/g, "''")}' LIMIT 1`
     );
-    const u = res.rows?.[0];
+    const u = res[0];
     if (u) {
       setUser(u);
       localStorage.setItem("posUser", JSON.stringify(u));

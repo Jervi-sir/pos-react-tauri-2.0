@@ -54,7 +54,7 @@ export function ExportDialog({
 
     const sql = buildQuery(range, startDate, endDate);
     const res: any = await runSql(sql);
-    let rows = res.rows || [];
+    let rows = res || [];
 
     // Remove excluded fields
     if (excludeFields.length) {

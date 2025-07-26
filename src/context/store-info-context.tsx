@@ -61,7 +61,7 @@ export const StoreInfoProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         const response = await runSql("SELECT * FROM store_info WHERE id = 1 LIMIT 1");
         // @ts-ignore
-        const rows = response.rows || [];
+        const rows = response || [];
         if (rows && rows.length > 0 && rows[0]) {
           setStoreInfo(rows[0]);
           saveToStorage(rows[0]);

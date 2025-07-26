@@ -1,43 +1,45 @@
+- make images as images not base64
+
 - do an other schema for the db @done
   - add on delete cascade @done
 - login @done
-- stocks
-  - add product
-  - delete product
-  - add more stocks to product
-  - edit product
-  - list products
-    - filters
-    - sorting
-    - paginate
+- stocks @done
+  - add product @done
+  - delete product @done
+  - add more stocks to product @done
+  - edit product @done
+  - list products @done
+    - filters @done
+    - sorting @done
+    - paginate @done
 
-- categories
-  - delete category
-  - add category
-  - edit category
-  - list and paginate
+- categories @done
+  - delete category @done
+  - add category @done
+  - edit category @done
+  - list and paginate @done
 
-- product
-  - search
-  - show the quantity history 
-  - show the sales history of the product
+- product @done
+  - search @done
+  - show the quantity history @done
+  - show the sales history of the product @done
 
-- invoices
-  - invoice for entries
-  - invoice for sales
-  - list
-    - filters
-    - sorting
-    - pagination
+- invoices @done
+  - invoice for entries @done
+  - invoice for sales @done
+  - list @done
+    - filters @done
+    - sorting @done
+    - pagination @done
 
-- user 
-  - list 
-  - paginate
-  - filter
-  - add
-  - edit
-  - delete
+- user @done
+  - list @done
+  - paginate @done
+  - filter @done
+  - add @done
+  - edit @done
+  - delete @done
 
-- pos
-  - make a sale
-  - 
+- pos @done
+  - make a sale @done
+  - @done

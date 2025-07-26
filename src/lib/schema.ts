@@ -143,6 +143,6 @@ export const schemaStatements = [
   index4,
   index5,
   index6,
-  insert_users,
-  insert_store_info,
+  // insert_users,
+  // insert_store_info,
 ];
