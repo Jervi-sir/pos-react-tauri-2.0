@@ -64,7 +64,7 @@ export const SummaryCards = () => {
   if (error) return <div className="text-red-500">{error}</div>;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <Card>
         <CardHeader>
           <CardTitle>Total Revenue</CardTitle>

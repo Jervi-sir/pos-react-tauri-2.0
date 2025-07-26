@@ -20,6 +20,7 @@ import { useDebounce } from "use-debounce";
 import { AdjustInventoryDialog } from "./adjust-inventory";
 import { useNavigate } from "react-router-dom";
 import { routes } from "@/main";
+import { ExportProductsDialog } from "./export-dialog";
 
 // Define the Product type based on your schema
 type Product = {
@@ -139,16 +140,18 @@ export default function ProductsPage() {
   // if (error) return <div>Error: {error}</div>;
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-6">
+    <>
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Products</h1>
-        <NewProduct categories={categories} fetchProducts={fetchProducts} />
-        <Button onClick={() => navigate(routes.BulkCreateProducts)}>
-          Bulk Create Products
-        </Button>
+        <div className="flex gap-4">
+          <Button onClick={() => navigate(routes.BulkCreateProducts)} variant={'outline'} size={'sm'}>
+            Bulk Create Products
+          </Button>
+          <NewProduct categories={categories} fetchProducts={fetchProducts} />
+        </div>
       </div>
       {/* Filters and Search */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-4">
         <Select value={categoryId} onValueChange={setCategoryId}>
           <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="All Categories" />
@@ -168,7 +171,7 @@ export default function ProductsPage() {
           placeholder="Search by name or barcode"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full sm:w-[300px]"
+          className="w-full"
         />
         <Select value={sortOption} onValueChange={setSortOption}>
           <SelectTrigger className="w-full sm:w-[200px]">
@@ -185,6 +188,10 @@ export default function ProductsPage() {
             <SelectItem value="created_at ASC">Oldest First</SelectItem>
           </SelectContent>
         </Select>
+         <ExportProductsDialog
+          categoryId={categoryId}
+          searchQuery={debouncedSearchQuery}
+        />
       </div>
       {/* Table */}
       <div className="border rounded-md shadow overflow-x-auto">
@@ -266,6 +273,6 @@ export default function ProductsPage() {
         setPage={setPage}
         maxPagesToShow={5}
       />
-    </div>
+    </>
   );
 }

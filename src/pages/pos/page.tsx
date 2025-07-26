@@ -49,7 +49,6 @@ type StoreInfo = {
 };
 
 export default function PosPage() {
-  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
@@ -287,10 +286,10 @@ export default function PosPage() {
   }, [debouncedSearchQuery]);
 
   return (
-    <div className="container mx-auto py-10">
-      <h1 className="text-2xl font-bold mb-6">Point of Sale</h1>
+    <>
+      <h1 className="text-2xl font-bold">Point of Sale</h1>
       {/* Search Input */}
-      <div className="mb-6">
+      <div>
         <Input
           placeholder="Search by name or barcode"
           value={searchQuery}
@@ -485,13 +484,6 @@ export default function PosPage() {
           Print Receipt
         </Button>
       )}
-      <Button
-        variant="outline"
-        className="mt-4 ml-4"
-        onClick={() => navigate(routes.product)}
-      >
-        Back to Products
-      </Button>
-    </div>
+    </>
   );
 }

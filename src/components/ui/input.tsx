@@ -10,7 +10,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   const inputType = isPassword && show ? "text" : type
 
   return (
-    <div className="relative w-full">
+    <div className="relative">
       <input
         type={inputType}
         data-slot="input"

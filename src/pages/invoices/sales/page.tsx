@@ -1,3 +1,4 @@
+// src/pages/SalesPage.tsx
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import { runSql } from "@/runSql";
 import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { ExportSalesDialog } from "./export-sale-invoices-dialog";
 
 type Invoice = {
   id: number;
@@ -51,12 +53,19 @@ type StoreInfo = {
   logo_base64: string | null;
 };
 
+type User = {
+  id: number;
+  name: string;
+};
+
 export default function SalesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [users, setUsers] = useState<User[]>([]); // New state for users
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedInvoiceType, setSelectedInvoiceType] = useState<string>("all"); // New state for invoice type
+  const [selectedInvoiceType, setSelectedInvoiceType] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [userId, setUserId] = useState<string>("all"); // Changed to "all" as default
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [soldProducts, setSoldProducts] = useState<SoldProduct[]>([]);
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
@@ -68,14 +77,24 @@ export default function SalesPage() {
     try {
       const query = `SELECT * FROM store_info LIMIT 1`;
       const result = await runSql(query);
-      // @ts-ignore
       if (result.length) {
-        // @ts-ignore
         setStoreInfo(result[0] as StoreInfo);
       }
     } catch (err) {
       console.error("Error fetching store info:", err);
       toast.error(`Failed to fetch store info: ${(err as Error).message}`);
+    }
+  };
+
+  // Fetch users
+  const fetchUsers = async () => {
+    try {
+      const query = `SELECT id, name FROM users ORDER BY name`;
+      const result = await runSql(query);
+      setUsers(result as User[]);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      toast.error(`Failed to fetch users: ${(err as Error).message}`);
     }
   };
 
@@ -91,7 +110,7 @@ export default function SalesPage() {
         AND i.invoice_type = 'sold'
       `;
       const params: string[] = [];
-     
+
       if (selectedCategory !== "all") {
         query += ` AND p.category_id = ${parseInt(selectedCategory)}`;
       }
@@ -101,9 +120,18 @@ export default function SalesPage() {
       if (endDate) {
         query += ` AND i.created_at <= '${endDate} 23:59:59'`;
       }
+      if (userId !== "all") {
+        const parsedUserId = parseInt(userId, 10);
+        if (!isNaN(parsedUserId)) {
+          query += ` AND i.user_id = ${parsedUserId}`;
+        } else {
+          toast.error("Invalid User ID selected.");
+          return;
+        }
+      }
 
       query += ` ORDER BY i.created_at DESC`;
-        console.log('query: ', query)
+      console.log('query: ', query);
 
       const results = await runSql(query);
       setInvoices(results as Invoice[]);
@@ -134,7 +162,6 @@ export default function SalesPage() {
 
   // Print receipt
   const handlePrint = useReactToPrint({
-    // @ts-ignore
     content: () => printRef.current,
     documentTitle: `Receipt_${selectedInvoice?.id || "unknown"}_${new Date().toISOString()}`,
   });
@@ -165,42 +192,67 @@ export default function SalesPage() {
 
   useEffect(() => {
     fetchStoreInfo();
+    fetchUsers(); // Fetch users on mount
     fetchInvoices();
-  }, [selectedCategory, selectedInvoiceType, startDate, endDate]); // Added selectedInvoiceType to dependencies
+  }, [selectedCategory, selectedInvoiceType, startDate, endDate, userId]);
 
   return (
-    <div className="container mx-auto py-10">
-      <h1 className="text-2xl font-bold mb-6">Sales History</h1>
+    <>
+      <h1 className="text-2xl font-bold">Sales History</h1>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <Input
-          type="date"
-          value={startDate}
-          onChange={(e) => handleStartDateChange(e.target.value)}
-          placeholder="Start Date"
-          max={endDate}
-          className="w-full sm:w-[200px]"
-        />
-        <Input
-          type="date"
-          value={endDate}
-          onChange={(e) => handleEndDateChange(e.target.value)}
-          placeholder="End Date"
-          min={startDate}
-          className="w-full sm:w-[200px]"
-        />
+      <div className="flex gap-4">
+        <div className="flex gap-3 flex-1">
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => handleStartDateChange(e.target.value)}
+            placeholder="Start Date"
+            max={endDate}
+            className="w-[150px]"
+          />
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => handleEndDateChange(e.target.value)}
+            placeholder="End Date"
+            min={startDate}
+            className="w-[150px]"
+          />
+          <Select value={userId} onValueChange={setUserId}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Select User" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Users</SelectItem>
+              {users.map((user) => (
+                <SelectItem key={user.id} value={user.id.toString()}>
+                  {user.name} (ID: {user.id})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <Button
           variant="outline"
           onClick={() => {
             setStartDate("");
             setEndDate("");
-            setSelectedInvoiceType("all"); // Reset invoice type filter
+            setSelectedInvoiceType("all");
+            setSelectedCategory("all");
+            setUserId("all");
           }}
           className="w-full sm:w-auto"
         >
           Clear Filters
         </Button>
+        <ExportSalesDialog
+          selectedCategory={selectedCategory}
+          selectedInvoiceType={selectedInvoiceType}
+          startDate={startDate}
+          endDate={endDate}
+          userId={userId}
+        />
       </div>
 
       {/* Error Display */}
@@ -212,7 +264,7 @@ export default function SalesPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Invoice ID</TableHead>
-              <TableHead>Invoice Type</TableHead> {/* Added Invoice Type column */}
+              <TableHead>Invoice Type</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Total Quantity</TableHead>
               <TableHead>Total Price</TableHead>
@@ -229,7 +281,7 @@ export default function SalesPage() {
                   className="cursor-pointer"
                 >
                   <TableCell>{invoice.id}</TableCell>
-                  <TableCell>{invoice.invoice_type}</TableCell> {/* Display invoice type */}
+                  <TableCell>{invoice.invoice_type}</TableCell>
                   <TableCell>{format(new Date(invoice.created_at), "PPP p")}</TableCell>
                   <TableCell>{invoice.total_quantity}</TableCell>
                   <TableCell>${invoice.total_price.toFixed(2)}</TableCell>
@@ -360,6 +412,6 @@ export default function SalesPage() {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

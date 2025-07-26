@@ -200,7 +200,7 @@ export const NewProduct = ({ categories, fetchProducts }: any) => {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button>Create Product</Button>
+        <Button size={'sm'}>Create Product</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

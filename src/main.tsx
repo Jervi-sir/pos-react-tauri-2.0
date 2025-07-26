@@ -37,7 +37,7 @@ export const routes = {
   sql: '/sql',                                  // done
   sqlExplorer: '/sql-explorer',                 // done
   settings: '/settings',                        // done
-  product: '/products/:id?',                    // done
+  product: '/products/',                    // done
   productId: '/products/',
 }
 
@@ -56,7 +56,7 @@ const router = createBrowserRouter([
       { path: routes.sql, element: <SqlQueriesPage /> },
       { path: routes.sqlExplorer, element: <SchemaExplorer /> },
       { path: routes.settings, element: <SettingsPage /> },
-      { path: routes.product, element: <SingleProductPage /> },
+      { path: routes.product + ':id?', element: <SingleProductPage /> },
     ],
   },
 ]);

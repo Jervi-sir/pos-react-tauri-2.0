@@ -275,10 +275,10 @@ export default function BulkCreateProducts() {
   };
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-6">
+    <>
+      <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Bulk Create Products</h1>
-        <Button variant="outline" onClick={() => navigate(routes.productInventory)}>
+        <Button variant="outline" onClick={() => navigate(routes.productInventory)} size={'sm'}>
           Back to Inventory
         </Button>
       </div>
@@ -435,6 +435,6 @@ export default function BulkCreateProducts() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

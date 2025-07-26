@@ -123,10 +123,10 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
+    <>
+      <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Categories</h2>
-        <Button onClick={() => openDialog()}>New Category</Button>
+        <Button onClick={() => openDialog()} size={'sm'}>New Category</Button>
       </div>
 
       {error && (
@@ -207,6 +207,6 @@ export default function CategoriesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

@@ -137,10 +137,10 @@ export default function UsersScreen() {
   const pageCount = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
+    <>
+      <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Users</h2>
-        <Button onClick={() => openDialog()}>New User</Button>
+        <Button onClick={() => openDialog()} size={'sm'}>New User</Button>
       </div>
       {/* {loading && <div>Loading...</div>} */}
       {error && <div className="mb-2 text-red-600">{error}</div>}
@@ -260,6 +260,6 @@ export default function UsersScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

@@ -1,13 +1,13 @@
 // src/pages/ProductDetails.tsx
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { runSql } from "@/runSql";
 import { useDebounce } from "use-debounce";
 import { toast } from "sonner";
 import { routes } from "@/main";
+import { ExportInventoryHistoryDialog } from "./export-inventory-history";
 
 type Product = {
   id: number;
@@ -81,23 +81,6 @@ export default function SingleProductPage() {
       `;
       const historyResult = await runSql(historyQuery);
       setHistoryEntries(historyResult as HistoryEntry[]);
-
-      // Preferred: Parameterized queries
-      // const productQuery = `
-      //   SELECT p.*, pc.name as category_name
-      //   FROM products p
-      //   LEFT JOIN product_categories pc ON p.category_id = pc.id
-      //   WHERE p.id = ?
-      // `;
-      // const productResult = await runSql(productQuery, [parseInt(productId, 10)]);
-      //
-      // const historyQuery = `
-      //   SELECT *
-      //   FROM history_product_entries
-      //   WHERE product_id = ?
-      //   ORDER BY created_at DESC
-      // `;
-      // const historyResult = await runSql(historyQuery, [parseInt(productId, 10)]);
     } catch (err) {
       console.error("Error fetching product details:", err);
       setError(`Failed to fetch product details: ${(err as Error).message}`);
@@ -155,7 +138,7 @@ export default function SingleProductPage() {
   if (loading) return <div className="container mx-auto py-10">Loading...</div>;
 
   return (
-    <div className="container mx-auto py-10">
+    <div>
       <h1 className="text-2xl font-bold mb-6">Product Details</h1>
       {/* Search Input */}
       <div className="mb-6">
@@ -174,9 +157,11 @@ export default function SingleProductPage() {
                   <TableRow
                     key={result.id}
                     onClick={() => handleSelectProduct(result.id)}
-                    className="cursor-pointer "
+                    className="cursor-pointer"
                   >
-                    <TableCell><img src={result.image_base64} className="h-14 w-14" /></TableCell>
+                    <TableCell>
+                      <img src={result.image_base64} className="h-14 w-14" />
+                    </TableCell>
                     <TableCell>{result.name}</TableCell>
                     <TableCell>{result.barcode || "N/A"}</TableCell>
                   </TableRow>
@@ -215,7 +200,15 @@ export default function SingleProductPage() {
           </div>
           {/* History Entries */}
           <div>
-            <h2 className="text-xl font-semibold mb-4">Inventory History</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Inventory History</h2>
+              {historyEntries.length > 0 && (
+                <ExportInventoryHistoryDialog
+                  productId={product.id}
+                  productName={product.name}
+                />
+              )}
+            </div>
             <div className="border rounded-md shadow overflow-x-auto">
               <Table>
                 <TableHeader>

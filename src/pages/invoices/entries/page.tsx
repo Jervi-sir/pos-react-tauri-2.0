@@ -1,3 +1,4 @@
+// src/pages/EntryInvoicesPage.tsx
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,11 +13,19 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { runSql } from "@/runSql";
 import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { routes } from "@/main";
+import { ExportEntryInvoicesDialog } from "./export-entry-invoices-dialog";
 
 type Invoice = {
   id: number;
@@ -46,11 +55,18 @@ type StoreInfo = {
   logo_base64: string | null;
 };
 
+type User = {
+  id: number;
+  name: string;
+};
+
 export default function EntryInvoicesPage() {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [users, setUsers] = useState<User[]>([]); // New state for users
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [userId, setUserId] = useState<string>("all"); // New state for user_id filter
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [soldProducts, setSoldProducts] = useState<SoldProduct[]>([]);
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
@@ -71,6 +87,18 @@ export default function EntryInvoicesPage() {
     }
   };
 
+  // Fetch users
+  const fetchUsers = async () => {
+    try {
+      const query = `SELECT id, name FROM users ORDER BY name`;
+      const result = await runSql(query);
+      setUsers(result as User[]);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      toast.error(`Failed to fetch users: ${(err as Error).message}`);
+    }
+  };
+
   // Fetch invoices with filters
   const fetchInvoices = async () => {
     try {
@@ -86,6 +114,15 @@ export default function EntryInvoicesPage() {
       }
       if (endDate) {
         query += ` AND i.created_at <= '${endDate} 23:59:59'`;
+      }
+      if (userId !== "all") {
+        const parsedUserId = parseInt(userId, 10);
+        if (!isNaN(parsedUserId)) {
+          query += ` AND i.user_id = ${parsedUserId}`;
+        } else {
+          toast.error("Invalid User ID selected.");
+          return;
+        }
       }
 
       query += ` ORDER BY i.created_at DESC`;
@@ -153,41 +190,62 @@ export default function EntryInvoicesPage() {
 
   useEffect(() => {
     fetchStoreInfo();
+    fetchUsers(); // Fetch users on mount
     fetchInvoices();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, userId]); // Added userId to dependencies
 
   return (
-    <div className="container mx-auto py-10">
-      <h1 className="text-2xl font-bold mb-6">Purchase History</h1>
-
+    <>
+      <h1 className="text-2xl font-bold">Purchase History</h1>
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <Input
-          type="date"
-          value={startDate}
-          onChange={(e) => handleStartDateChange(e.target.value)}
-          placeholder="Start Date"
-          max={endDate}
-          className="w-full sm:w-[200px]"
-        />
-        <Input
-          type="date"
-          value={endDate}
-          onChange={(e) => handleEndDateChange(e.target.value)}
-          placeholder="End Date"
-          min={startDate}
-          className="w-full sm:w-[200px]"
-        />
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex gap-3 flex-1">
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => handleStartDateChange(e.target.value)}
+            placeholder="Start Date"
+            max={endDate}
+            className="w-[150px]"
+          />
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => handleEndDateChange(e.target.value)}
+            placeholder="End Date"
+            min={startDate}
+            className="w-[150px]"
+          />
+          <Select value={userId} onValueChange={setUserId}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Select User" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Users</SelectItem>
+              {users.map((user) => (
+                <SelectItem key={user.id} value={user.id.toString()}>
+                  {user.name} (ID: {user.id})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <Button
           variant="outline"
           onClick={() => {
             setStartDate("");
             setEndDate("");
+            setUserId("all");
           }}
           className="w-full sm:w-auto"
         >
           Clear Filters
         </Button>
+        <ExportEntryInvoicesDialog
+          startDate={startDate}
+          endDate={endDate}
+          userId={userId}
+        />
       </div>
 
       {/* Error Display */}
@@ -351,14 +409,6 @@ export default function EntryInvoicesPage() {
           </div>
         </div>
       </div>
-
-      <Button
-        variant="outline"
-        className="mt-4"
-        onClick={() => navigate(routes.pos)}
-      >
-        Back to POS
-      </Button>
-    </div>
+    </>
   );
 }
