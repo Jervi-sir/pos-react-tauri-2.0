@@ -7,7 +7,7 @@ interface StockActionsDropdownProps {
   stockLeft: number;
   openDialog: (prod: { id: number }) => void;
   openStockDialog: (productId: number, stockLeft: number) => void;
-  setDeleteProductId: (id: number) => void;
+  setDeleteProductId: (id: number | null) => void;
   setDeleteDialogOpen: (open: boolean) => void;
   actionLoading: boolean;
 }
