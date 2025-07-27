@@ -125,15 +125,6 @@ const insert_users2 = `
   );
 `;
 
-// @ts-ignore
-const insert_store_info = `
-  INSERT INTO store_info (id, name, address, phone, email, tax_id, logo_path, created_at, updated_at)
-  SELECT 1, 'Default Store', '', '', '', '', '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-  WHERE NOT EXISTS (
-    SELECT 1 FROM store_info WHERE id = 1
-  );
-`;
-
 export const schemaStatements = [
   enableForeignKeys,
   users,
@@ -152,5 +143,4 @@ export const schemaStatements = [
   index6,
   insert_users,
   insert_users2,
-  // insert_store_info,
 ];

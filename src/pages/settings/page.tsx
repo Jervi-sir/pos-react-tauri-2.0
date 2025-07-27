@@ -9,6 +9,7 @@ import { ThemeSettings } from "./theme-settings";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { useImagePath } from "@/context/document-path-context";
+import StoragePath from "./storage-path";
 
 type StoreInfo = {
   name: string;
@@ -276,6 +277,7 @@ export default function SettingsPage() {
           </form>
         </CardContent>
       </Card>
+      <StoragePath />
     </div>
   );
 }

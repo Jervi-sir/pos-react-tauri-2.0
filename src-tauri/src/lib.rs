@@ -1,9 +1,8 @@
 mod sqlite;
 use std::fs::{create_dir_all, File};
 use std::io::Write;
-use std::path::Path;
 use dirs_next::document_dir;
-use tauri::command;
+use tauri::generate_context;
 
 #[tauri::command]
 async fn run_sql(query: String) -> Result<serde_json::Value, String> {
@@ -34,7 +33,6 @@ async fn run_sql(query: String) -> Result<serde_json::Value, String> {
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| format!("Collect error: {}", e))?;
 
-        // Ok(json!({"rows": rows}))
         Ok(json!(rows))
     } else {
         // Non-SELECT, non-PRAGMA: execute and return affected rows
@@ -60,11 +58,15 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-#[command]
+#[tauri::command]
 fn save_image(file_name: String, data: Vec<u8>) -> Result<String, String> {
+    // Get the identifier from tauri.conf.json and sanitize to "nvl-store"
+    let config: tauri::Context<tauri::Wry> = generate_context!();
+    let app_name = config.config().identifier.split('.').last().unwrap_or("nvl-store");
+
     // Get the Documents directory
     let documents_dir = document_dir().ok_or_else(|| "Failed to get Documents directory".to_string())?;
-    let target_dir = documents_dir.join("pos").join("images");
+    let target_dir = documents_dir.join(app_name).join("images");
 
     // Create the directory if it doesn't exist
     create_dir_all(&target_dir).map_err(|e| format!("Failed to create directory: {}", e))?;
@@ -80,11 +82,28 @@ fn save_image(file_name: String, data: Vec<u8>) -> Result<String, String> {
     Ok(file_path_str)
 }
 
+#[tauri::command]
+fn get_storage_path() -> Result<String, String> {
+    // Get the identifier from tauri.conf.json and sanitize to "nvl-store"
+    let config: tauri::Context<tauri::Wry> = generate_context!();
+    let app_name = config.config().identifier.split('.').last().unwrap_or("nvl-store");
+
+    // Construct the storage path
+    let storage_path = document_dir()
+        .ok_or_else(|| "Failed to get user's document dir".to_string())?
+        .join(app_name)
+        .to_str()
+        .ok_or_else(|| "Invalid path encoding".to_string())?
+        .to_string();
+
+    Ok(storage_path)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, run_sql, save_image])
+        .invoke_handler(tauri::generate_handler![greet, run_sql, save_image, get_storage_path])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
