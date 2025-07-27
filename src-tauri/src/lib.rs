@@ -62,7 +62,8 @@ fn greet(name: &str) -> String {
 fn save_image(file_name: String, data: Vec<u8>) -> Result<String, String> {
     // Get the identifier from tauri.conf.json and sanitize to "nvl-store"
     let config: tauri::Context<tauri::Wry> = generate_context!();
-    let app_name = config.config().identifier.split('.').last().unwrap_or("nvl-store");
+    // let app_name = config.config().identifier.split('.').last().unwrap_or("nvl-store");
+    let app_name = &config.config().identifier; // e.g., "com.nvl-store.app"
 
     // Get the Documents directory
     let documents_dir = document_dir().ok_or_else(|| "Failed to get Documents directory".to_string())?;
@@ -86,7 +87,8 @@ fn save_image(file_name: String, data: Vec<u8>) -> Result<String, String> {
 fn get_storage_path() -> Result<String, String> {
     // Get the identifier from tauri.conf.json and sanitize to "nvl-store"
     let config: tauri::Context<tauri::Wry> = generate_context!();
-    let app_name = config.config().identifier.split('.').last().unwrap_or("nvl-store");
+    // let app_name = config.config().identifier.split('.').last().unwrap_or("nvl-store");
+    let app_name = &config.config().identifier; // e.g., "com.nvl-store.app"
 
     // Construct the storage path
     let storage_path = document_dir()

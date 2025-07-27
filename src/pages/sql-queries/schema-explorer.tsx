@@ -8,6 +8,8 @@ import LoadingScreen from '@/layouts/loading-screen';
 import { useAuth } from '@/context/auth-context';
 import { useNavigate } from 'react-router-dom';
 import { routes } from '@/main';
+import seedDatabase from '@/lib/generate-fake-data';
+import { Button } from '@/components/ui/button';
 
 interface TableInfo {
   name: string;
@@ -97,7 +99,7 @@ const SchemaExplorer = () => {
     <div className="">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Database Tables</h1>
-        {/* <Button onClick={() => generateFakeData()}>Generate Fake Data</Button> */}
+        <Button onClick={() => seedDatabase()}>Generate Fake Data</Button>
       </div>
       {tables.length === 0 ? (
         <p className="text-muted-foreground">No tables found in the database.</p>

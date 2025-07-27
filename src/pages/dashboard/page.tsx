@@ -1,4 +1,5 @@
 import { LowStockProduct } from "./low-stock-detector";
+import { SalesStatsChart } from "./profit-chart";
 import { SalesAreaChart } from "./sales-area-chart";
 import { SalesByCategoryPieChart } from "./sales-by-category-pie-chart";
 import { SummaryCards } from "./summary-cards";
@@ -9,6 +10,7 @@ const DashboardPage = () => {
     <>
       <h2 className="text-2xl font-bold">Analytics</h2>
       <SummaryCards />
+      <SalesStatsChart />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <SalesAreaChart />
         <TopProductsBarChart />

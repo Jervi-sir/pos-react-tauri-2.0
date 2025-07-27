@@ -6,7 +6,9 @@ use tauri::generate_context;
 pub fn get_connection() -> Result<Connection> {
     // Get the identifier from tauri.conf.json and sanitize to "nvl-store"
     let config: tauri::Context<tauri::Wry> = generate_context!();
-    let app_name = config.config().identifier.split('.').last().unwrap_or("nvl-store");
+    // let app_name = config.config().identifier.split('.').last().unwrap_or("nvl-store");
+    let app_name = &config.config().identifier; // e.g., "com.nvl-store.app"
+
 
     let mut db_path: PathBuf = document_dir()
         .expect("Could not get user's document dir")

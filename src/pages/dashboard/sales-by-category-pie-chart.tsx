@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
-import { Pie, PieChart } from "recharts";
+"use client"
+
+import { useEffect, useState } from "react"
+import { Pie, PieChart } from "recharts"
 import {
   Card,
   CardContent,
@@ -7,33 +9,45 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/components/ui/card"
 import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-} from "@/components/ui/chart";
-import { runSql } from "@/runSql";
+} from "@/components/ui/chart"
+import { runSql } from "@/runSql"
+import { toast } from "sonner"
 
 type ChartData = {
-  category: string;
-  total: number;
-};
+  category: string
+  total: number
+  fill: string // Added for dynamic colors
+}
 
 const chartConfig = {
   total: { label: "Sales" },
-} satisfies ChartConfig;
+} satisfies ChartConfig
 
 export function SalesByCategoryPieChart() {
-  const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [chartData, setChartData] = useState<ChartData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Function to generate random color
+  const generateRandomColor = () => {
+    const letters = "0123456789ABCDEF"
+    let color = "#"
+    for (let i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)]
+    }
+    return color
+  }
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
-      setError(null);
+      setLoading(true)
+      setError(null)
       try {
         const query = `
           SELECT pc.name as category, SUM(sp.total_price) as total
@@ -44,18 +58,26 @@ export function SalesByCategoryPieChart() {
           WHERE i.invoice_type = 'sold'
           GROUP BY pc.id
           ORDER BY total DESC
-        `;
-        const res = await runSql(query);
-        setChartData(res as ChartData[]);
+        `
+        const res = await runSql(query)
+        // Map results and assign random colors
+      //@ts-ignore
+        const formattedData: ChartData[] = res.map((item: any) => ({
+          category: item.category,
+          total: parseFloat(item.total) || 0,
+          fill: generateRandomColor(),
+        }))
+        setChartData(formattedData)
       } catch (err) {
-        console.error("Error fetching sales by category:", err);
-        setError("Failed to load sales by category.");
+        console.error("Error fetching sales by category:", err)
+        setError("Failed to load sales by category.")
+        toast.error(`Failed to load sales by category: ${(err as Error).message}`)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-    fetchData();
-  }, []);
+    }
+    fetchData()
+  }, [])
 
   return (
     <Card className="flex flex-col">
@@ -76,12 +98,20 @@ export function SalesByCategoryPieChart() {
                 content={
                   <ChartTooltipContent
                     hideLabel
-                    // @ts-ignore
-                    valueFormatter={(value) => `DZD ${Number(value).toFixed(2)}`}
+                    formatter={(value, name) => [
+                      `DA ${Number(value).toFixed(2)} `,
+                      name,
+                    ]}
                   />
                 }
               />
-              <Pie data={chartData} dataKey="total" nameKey="category" label />
+              <Pie
+                data={chartData}
+                dataKey="total"
+                nameKey="category"
+                label={({ category, total }) => `${category}: DA${total.toFixed(2)}`}
+                fill="fill"
+              />
             </PieChart>
           </ChartContainer>
         )}
@@ -92,5 +122,5 @@ export function SalesByCategoryPieChart() {
         </div>
       </CardFooter>
     </Card>
-  );
+  )
 }

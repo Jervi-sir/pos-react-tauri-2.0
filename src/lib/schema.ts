@@ -27,6 +27,7 @@ const products = `
     name TEXT NOT NULL,
     barcode TEXT UNIQUE,
     current_price_unit REAL NOT NULL DEFAULT 0,
+    original_bought_price REAL NOT NULL DEFAULT 0,
     quantity INTEGER NOT NULL DEFAULT 0,
     image_path TEXT,
     category_id INTEGER NOT NULL,
@@ -41,6 +42,7 @@ const invoices = `
     invoice_type TEXT NOT NULL CHECK (invoice_type IN ('sold', 'bought')),
     total_quantity INTEGER NOT NULL DEFAULT 0,
     total_price REAL NOT NULL DEFAULT 0,
+    total_original_bought_price REAL NOT NULL DEFAULT 0,
     user_id INTEGER NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -55,6 +57,8 @@ const soldProducts = `
     quantity INTEGER NOT NULL,
     total_price REAL NOT NULL,
     price_unit REAL NOT NULL,
+    original_bought_price REAL NOT NULL DEFAULT 0,
+    total_original_bought_price REAL NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
@@ -68,6 +72,7 @@ const historyProductEntries = `
     invoice_id INTEGER,
     quantity INTEGER NOT NULL,
     purchase_price REAL NOT NULL,
+    original_bought_price REAL NOT NULL DEFAULT 0,
     entry_type TEXT NOT NULL CHECK (entry_type IN ('purchase', 'manual', 'correction', 'return')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -112,16 +117,16 @@ const index6 = `
 
 const insert_users = `
   INSERT INTO users (name, email, password, role, created_at, updated_at)
-  SELECT 'Admin', 'jervi@gmail.com', 'password', 'jervi', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  SELECT 'Admin', 'jervi@jervi.com', 'password', 'jervi', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
   WHERE NOT EXISTS (
-    SELECT 1 FROM users WHERE email = 'jervi@gmail.com'
+    SELECT 1 FROM users WHERE email = 'jervi@jervi.com'
   );
 `;
 const insert_users2 = `
   INSERT INTO users (name, email, password, role, created_at, updated_at)
-  SELECT 'Admin', 'gacembekhira@gmail.com', 'password', 'admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  SELECT 'Admin', 'admin@gacem.com', 'password', 'admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
   WHERE NOT EXISTS (
-    SELECT 1 FROM users WHERE email = 'gacembekhira@gmail.com'
+    SELECT 1 FROM users WHERE email = 'admin@gacem.com'
   );
 `;
 

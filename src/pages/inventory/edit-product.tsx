@@ -26,6 +26,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { invoke } from "@tauri-apps/api/core";
 import { useImagePath } from "@/context/document-path-context";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Label } from "@/components/ui/label";
 
 type Category = {
   id: number;
@@ -38,6 +40,7 @@ type EditProductDialogProps = {
     name: string;
     barcode: string | null;
     current_price_unit: number;
+    original_bought_price: number;
     image_path: string | null;
     category_id: number; // Added category_id
   };
@@ -145,6 +148,11 @@ export const EditProductDialog = ({ product, fetchProducts, categories }: EditPr
       setError("Price (Unit) is required");
       return;
     }
+    if (parseFloat(currentPriceUnit) < product.original_bought_price) {
+      setError("Price Should be greater then Original Price");
+      return;
+    }
+
     if (!categoryId) {
       setError("Category is required");
       return;
@@ -235,7 +243,7 @@ export const EditProductDialog = ({ product, fetchProducts, categories }: EditPr
   return (
     <Dialog open={open} onOpenChange={handleDialogClose}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)} >
           <Edit3 />
         </Button>
       </DialogTrigger>
@@ -246,75 +254,86 @@ export const EditProductDialog = ({ product, fetchProducts, categories }: EditPr
             Update the details for "{product.name}". Click save when you're done.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4">
-          <div className="grid gap-3">
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Name"
-              required
-            />
+        <ScrollArea className="min-h-80 rounded-md border p-2">
+          <div className="grid gap-4">
+            <div className="grid gap-3">
+              <Label>Name</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Name"
+                required
+              />
+            </div>
+            <div className="grid gap-3">
+              <Input
+                id="barcode"
+                value={barcode || ""}
+                onChange={(e) => setBarcode(e.target.value || null)}
+                placeholder="Barcode"
+              />
+            </div>
+            <div className="grid gap-3">
+              <Input
+                id="current_price_unit"
+                value={"Original Price: DA " + product.original_bought_price}
+                // onChange={(e) => setCurrentPriceUnit(e.target.value)}
+                disabled
+              />
+            </div>
+            <div className="grid gap-3">
+              <Input
+                id="current_price_unit"
+                value={currentPriceUnit}
+                onChange={(e) => setCurrentPriceUnit(e.target.value)}
+                type="number"
+                step="0.01"
+                min={product.original_bought_price}
+                placeholder="Price (Unit)"
+                required
+              />
+            </div>
+            <div className="gap-3">
+              <Select
+                value={categoryId}
+                onValueChange={(value) => setCategoryId(value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Select a Categories</SelectLabel>
+                    {categories.map((category) => (
+                      <SelectItem key={category?.id} value={category?.id.toString()} className="w-full">
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-3">
+              <Input
+                id="image"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+              />
+              {imagePreview && (
+                <div className="mt-2">
+                  <p className="text-sm font-medium">Image Preview:</p>
+                  <img
+                    src={imagePreview.startsWith("blob:") ? imagePreview : useImagePath(imagePreview)}
+                    alt="Selected product"
+                    className="w-24 h-24 object-cover rounded mt-1"
+                  />
+                </div>
+              )}
+            </div>
           </div>
-          <div className="grid gap-3">
-            <Input
-              id="barcode"
-              value={barcode || ""}
-              onChange={(e) => setBarcode(e.target.value || null)}
-              placeholder="Barcode"
-            />
-          </div>
-          <div className="grid gap-3">
-            <Input
-              id="current_price_unit"
-              value={currentPriceUnit}
-              onChange={(e) => setCurrentPriceUnit(e.target.value)}
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="Price (Unit)"
-              required
-            />
-          </div>
-          <div className="gap-3">
-            <Select
-              value={categoryId}
-              onValueChange={(value) => setCategoryId(value)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Select a Categories</SelectLabel>
-                  {categories.map((category) => (
-                    <SelectItem key={category?.id} value={category?.id.toString()} className="w-full">
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-3">
-            <Input
-              id="image"
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-            />
-            {imagePreview && (
-              <div className="mt-2">
-                <p className="text-sm font-medium">Image Preview:</p>
-                <img
-                  src={imagePreview.startsWith("blob:") ? imagePreview : useImagePath(imagePreview)}
-                  alt="Selected product"
-                  className="w-24 h-24 object-cover rounded mt-1"
-                />
-              </div>
-            )}
-          </div>
-        </div>
+        </ScrollArea>
         {error && <p className="text-red-500 text-sm">{error}</p>}
         <DialogFooter>
           <DialogClose asChild>

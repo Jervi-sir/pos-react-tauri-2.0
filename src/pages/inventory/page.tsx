@@ -15,7 +15,6 @@ import { PaginationSection } from "@/components/pagination-section";
 import { NewProduct } from "./new-product";
 import { EditProductDialog } from "./edit-product";
 import { DeleteProductDialog } from "./delete-product";
-import { SelectLabel } from "@radix-ui/react-select";
 import { useDebounce } from "use-debounce";
 import { AdjustInventoryDialog } from "./adjust-inventory";
 import { useNavigate } from "react-router-dom";
@@ -23,6 +22,7 @@ import { routes } from "@/main";
 import { ExportProductsDialog } from "./export-dialog";
 import { Eye } from "lucide-react";
 import { useImagePath } from "@/context/document-path-context";
+import { DetectZeroPriceProducts } from "./detect-zero-price-products";
 
 // Define the Product type based on your schema
 type Product = {
@@ -30,6 +30,7 @@ type Product = {
   name: string;
   barcode: string | null;
   current_price_unit: number;
+  original_bought_price: number;
   quantity: number;
   image_path: string | null;
   category_id: number;
@@ -78,11 +79,10 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-
       // Build WHERE clause
       let whereClauses: string[] = [];
       let countWhereClauses: string[] = [];
-      if (categoryId) {
+      if (categoryId && categoryId !== "all") { // Only apply category filter if not "all"
         const escapedCategoryId = parseInt(categoryId, 10);
         if (!isNaN(escapedCategoryId)) {
           whereClauses.push(`p.category_id = ${escapedCategoryId}`);
@@ -146,6 +146,7 @@ export default function ProductsPage() {
 
   return (
     <>
+      <DetectZeroPriceProducts />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Products</h1>
         <div className="flex gap-4">
@@ -156,14 +157,14 @@ export default function ProductsPage() {
         </div>
       </div>
       {/* Filters and Search */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex w-full gap-4">
         <Select value={categoryId} onValueChange={setCategoryId}>
           <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectLabel>All Categories</SelectLabel>
+              <SelectItem value="all">All Categories</SelectItem> {/* Use "all" as the value */}
               {categories.map((category) => (
                 <SelectItem key={category.id} value={category.id.toString()}>
                   {category.name}
@@ -172,12 +173,14 @@ export default function ProductsPage() {
             </SelectGroup>
           </SelectContent>
         </Select>
-        <Input
-          placeholder="Search by name or barcode"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full"
-        />
+        <div className="flex-1 w-full">
+          <Input
+            placeholder="Search by name or barcode"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 w-full"
+          />
+        </div>
         <Select value={sortOption} onValueChange={setSortOption}>
           <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="Sort By" />
@@ -193,7 +196,7 @@ export default function ProductsPage() {
             <SelectItem value="created_at ASC">Oldest First</SelectItem>
           </SelectContent>
         </Select>
-         <ExportProductsDialog
+        <ExportProductsDialog
           categoryId={categoryId}
           searchQuery={debouncedSearchQuery}
         />
@@ -207,7 +210,8 @@ export default function ProductsPage() {
               <th className="px-4 py-2 text-left">Name</th>
               <th className="px-4 py-2 text-left">Barcode</th>
               <th className="px-4 py-2 text-left">Category</th>
-              <th className="px-4 py-2 text-left">Price</th>
+              <th className="px-4 py-2 text-left">Sale Price</th>
+              <th className="px-4 py-2 text-left">Original Price</th>
               <th className="px-4 py-2 text-left">Stock</th>
               <th className="px-4 py-2 text-center">Actions</th>
             </tr>
@@ -232,9 +236,10 @@ export default function ProductsPage() {
                   <td className="px-4 py-2">{product.name}</td>
                   <td className="px-4 py-2">{product.barcode || "N/A"}</td>
                   <td className="px-4 py-2">{product.category_name || "N/A"}</td>
-                  <td className="px-4 py-2">${product.current_price_unit.toFixed(2)}</td>
+                  <td className="px-4 py-2">{product.current_price_unit.toFixed(2)}</td>
+                  <td className="px-4 py-2">{product.original_bought_price.toFixed(2)}</td>
                   <td className="px-4 py-2">{product.quantity}</td>
-                  <td className="px-4 py-2 text-right space-x-2">
+                  <td className="px-4 py-2 text-right flex flex-wrap justify-end gap-2">
                     <Button variant={'link'} size={'sm'} onClick={() => navigate(routes.productId + product.id)}>
                       <Eye />
                     </Button>
@@ -253,6 +258,7 @@ export default function ProductsPage() {
                         name: product.name,
                         barcode: product.barcode,
                         current_price_unit: product.current_price_unit,
+                        original_bought_price: product.original_bought_price,
                         category_id: product.category_id,
                         image_path: product.image_path,
                       }}

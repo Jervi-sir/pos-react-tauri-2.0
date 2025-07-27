@@ -45,7 +45,6 @@ export function LoginPage({
                       type="email"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
-                      placeholder="m@example.com"
                       required
                     />
                   </div>

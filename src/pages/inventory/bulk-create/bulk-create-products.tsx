@@ -39,6 +39,7 @@ type ProductEntry = {
   barcode: string | null;
   quantity: number;
   current_price_unit: number;
+  original_bought_price: number;
   category_id: number;
   category_name?: string;
   image_path?: string | null;
@@ -55,6 +56,7 @@ export default function BulkCreateProducts() {
     barcode: null,
     quantity: 0,
     current_price_unit: 0,
+    original_bought_price: 0,
     category_id: 0,
     isNew: true,
   });
@@ -64,7 +66,7 @@ export default function BulkCreateProducts() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Fetch categories
+  // Fetch categories (unchanged)
   const fetchCategories = async () => {
     try {
       const query = `SELECT id, name FROM product_categories ORDER BY name`;
@@ -81,7 +83,7 @@ export default function BulkCreateProducts() {
     fetchCategories();
   }, []);
 
-  // Compress and crop image to 200x200 pixels
+  // Compress and crop image to 200x200 pixels (unchanged)
   const compressAndCropImage = (file: File): Promise<Uint8Array> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -99,20 +101,12 @@ export default function BulkCreateProducts() {
           reject(new Error("Canvas context not supported"));
           return;
         }
-
-        // Set canvas to 200x200
         canvas.width = 200;
         canvas.height = 200;
-
-        // Crop to square (use the smaller dimension)
         const size = Math.min(img.width, img.height);
         const offsetX = (img.width - size) / 2;
         const offsetY = (img.height - size) / 2;
-
-        // Draw cropped image
         ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, 200, 200);
-
-        // Convert to JPEG with quality 0.7
         canvas.toBlob(
           (blob) => {
             if (!blob) {
@@ -131,7 +125,7 @@ export default function BulkCreateProducts() {
     });
   };
 
-  // Handle image file selection
+  // Handle image file selection (unchanged)
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -152,21 +146,21 @@ export default function BulkCreateProducts() {
     }
   };
 
-  // Handle barcode input
+  // Handle barcode input (unchanged)
   const handleBarcodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!barcode) return;
 
     try {
       setLoading(true);
-      const query = `SELECT p.id, p.name, p.barcode, p.current_price_unit, p.quantity, p.category_id, p.image_path, pc.name as category_name
+      const query = `SELECT p.id, p.name, p.barcode, p.current_price_unit, p.original_bought_price, p.quantity, p.category_id, p.image_path, pc.name as category_name
                     FROM products p
                     LEFT JOIN product_categories pc ON p.category_id = pc.id
                     WHERE p.barcode = '${barcode.replace(/'/g, "''")}'`;
       const result = await runSql(query);
-      // @ts-ignore
+      //@ts-ignore
       if (result.length > 0) {
-        // @ts-ignore
+        //@ts-ignore
         const product = result[0] as ProductEntry;
         product.isNew = false;
         product.quantity = 1; // Default quantity to add
@@ -195,7 +189,7 @@ export default function BulkCreateProducts() {
     }
   };
 
-  // Handle new product form submission
+  // Handle new product form submission (unchanged)
   const handleNewProductSubmit = async () => {
     if (!newProduct.name) {
       setError("Name is required");
@@ -203,6 +197,10 @@ export default function BulkCreateProducts() {
     }
     if (newProduct.current_price_unit <= 0) {
       setError("Price must be greater than 0");
+      return;
+    }
+    if (newProduct.original_bought_price <= 0) {
+      setError("Original Bought Price must be greater than 0");
       return;
     }
     if (newProduct.quantity <= 0) {
@@ -245,6 +243,7 @@ export default function BulkCreateProducts() {
       barcode: null,
       quantity: 0,
       current_price_unit: 0,
+      original_bought_price: 0,
       category_id: 0,
       isNew: true,
     });
@@ -257,7 +256,7 @@ export default function BulkCreateProducts() {
     }
   };
 
-  // Handle quantity change in table
+  // Handle quantity change in table (unchanged)
   const updateQuantity = (index: number, quantity: string) => {
     const qty = parseInt(quantity, 10);
     if (isNaN(qty) || qty < 0) return;
@@ -274,13 +273,46 @@ export default function BulkCreateProducts() {
     }
     setLoading(true);
     try {
+      // Calculate invoice totals
+      const totalQuantity = products.reduce((sum, p) => sum + p.quantity, 0);
+      const totalPrice = products.reduce((sum, p) => sum + p.quantity * p.current_price_unit, 0);
+      const totalOriginalBoughtPrice = products.reduce(
+        (sum, p) => sum + p.quantity * p.original_bought_price,
+        0
+      );
+
+      // Create invoice
+      const userId = 1; // Replace with actual user ID (e.g., from auth context)
+      const invoiceQuery = `
+        INSERT INTO invoices (invoice_type, total_quantity, total_price, total_original_bought_price, user_id)
+        VALUES ('bought', ${totalQuantity}, ${totalPrice}, ${totalOriginalBoughtPrice}, ${userId})
+      `;
+      await runSql(invoiceQuery);
+
+      // Fetch the created invoice ID
+      const fetchInvoiceQuery = `
+        SELECT id FROM invoices
+        WHERE created_at >= datetime('now', '-1 minute')
+        ORDER BY created_at DESC
+        LIMIT 1
+      `;
+      const invoiceResult = await runSql(fetchInvoiceQuery);
+      //@ts-ignore
+      if (!invoiceResult.length) {
+        throw new Error("Failed to retrieve invoice ID");
+      }
+      //@ts-ignore
+      const invoiceId = invoiceResult[0].id;
+
+      // Save products and link to invoice
       for (const product of products) {
         if (product.isNew) {
           const productQuery = `
-            INSERT INTO products (name, barcode, current_price_unit, quantity, category_id, image_path)
+            INSERT INTO products (name, barcode, current_price_unit, original_bought_price, quantity, category_id, image_path)
             VALUES ('${product.name.replace(/'/g, "''")}', 
                     ${product.barcode ? `'${product.barcode.replace(/'/g, "''")}'` : "NULL"}, 
                     ${product.current_price_unit}, 
+                    ${product.original_bought_price}, 
                     ${product.quantity}, 
                     ${product.category_id}, 
                     ${product.image_path ? `'${product.image_path.replace(/'/g, "''")}'` : "NULL"})
@@ -296,11 +328,11 @@ export default function BulkCreateProducts() {
             LIMIT 1
           `;
           const productResult = await runSql(fetchProductQuery);
-          // @ts-ignore
+          //@ts-ignore
           if (!productResult.length) {
             throw new Error(`Failed to retrieve product ID for ${product.name}`);
           }
-          // @ts-ignore
+          //@ts-ignore
           product.id = productResult[0].id;
         } else {
           const updateQuery = `
@@ -313,13 +345,13 @@ export default function BulkCreateProducts() {
         }
 
         const historyQuery = `
-          INSERT INTO history_product_entries (product_id, invoice_id, quantity, purchase_price, entry_type, created_at)
-          VALUES (${product.id}, NULL, ${product.quantity}, ${product.current_price_unit}, 'manual', CURRENT_TIMESTAMP)
+          INSERT INTO history_product_entries (product_id, invoice_id, quantity, purchase_price, original_bought_price, entry_type, created_at)
+          VALUES (${product.id}, ${invoiceId}, ${product.quantity}, ${product.current_price_unit}, ${product.original_bought_price}, 'purchase', CURRENT_TIMESTAMP)
         `;
         await runSql(historyQuery);
       }
 
-      toast.success("Products saved successfully!");
+      toast.success("Products and invoice saved successfully!");
       setProducts([]);
       navigate(routes.productInventory);
     } catch (err) {
@@ -363,6 +395,7 @@ export default function BulkCreateProducts() {
               <TableHead>Barcode</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Price</TableHead>
+              <TableHead>Original Bought Price</TableHead>
               <TableHead>Quantity</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -383,7 +416,8 @@ export default function BulkCreateProducts() {
                   <TableCell>{product.name}</TableCell>
                   <TableCell>{product.barcode || "N/A"}</TableCell>
                   <TableCell>{product.category_name || "N/A"}</TableCell>
-                  <TableCell>${product.current_price_unit.toFixed(2)}</TableCell>
+                  <TableCell>{product.current_price_unit.toFixed(2)}</TableCell>
+                  <TableCell>{product.original_bought_price.toFixed(2)}</TableCell>
                   <TableCell>
                     <Input
                       type="number"
@@ -408,7 +442,7 @@ export default function BulkCreateProducts() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={8} className="text-center">
                   No products added yet.
                 </TableCell>
               </TableRow>
@@ -429,11 +463,22 @@ export default function BulkCreateProducts() {
               Enter details for the new product with barcode {newProduct.barcode}.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4">
+          <div className="grid gap-6">
             <Input
               placeholder="Name"
               value={newProduct.name}
               onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+              required
+            />
+            <Input
+              placeholder="Original Bought Price (Unit)"
+              type="number"
+              step="0.01"
+              min="0"
+              value={newProduct.original_bought_price || ""}
+              onChange={(e) =>
+                setNewProduct({ ...newProduct, original_bought_price: parseFloat(e.target.value) || 0 })
+              }
               required
             />
             <Input
@@ -468,7 +513,7 @@ export default function BulkCreateProducts() {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectLabel>Select a Categories</SelectLabel>
+                  <SelectLabel>Select a Category</SelectLabel>
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id.toString()}>
                       {category.name}

@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { ExportEntryInvoicesDialog } from "./export-entry-invoices-dialog";
 // Import PaginationSection
 import { PaginationSection } from "@/components/pagination-section";
+import { useImagePath } from "@/context/document-path-context";
 
 type Invoice = {
   id: number;
@@ -431,7 +432,7 @@ export default function EntryInvoicesPage() {
                       <TableCell>
                         {product.image_path ? (
                           <img
-                            src={product.image_path}
+                            src={useImagePath(product.image_path)}
                             alt={product.name}
                             className="w-8 h-8 object-cover rounded"
                           />
@@ -472,7 +473,7 @@ export default function EntryInvoicesPage() {
           <div className="text-center">
             {storeInfo?.logo_path && (
               <img
-                src={storeInfo.logo_path}
+                src={useImagePath(storeInfo.logo_path)}
                 alt={storeInfo.name}
                 className="w-24 h-24 mx-auto mb-4"
               />

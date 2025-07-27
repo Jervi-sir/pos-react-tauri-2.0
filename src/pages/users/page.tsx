@@ -232,7 +232,7 @@ export default function UsersScreen() {
           <DialogHeader>
             <DialogTitle>{editId ? "Edit User" : "New User"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className="space-y-6">
             <Input
               value={userName}
               onChange={e => setUserName(e.target.value)}

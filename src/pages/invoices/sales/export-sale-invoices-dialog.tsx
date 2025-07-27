@@ -1,4 +1,3 @@
-// src/pages/export-sales-dialog.tsx
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,6 +27,7 @@ type Invoice = {
   total_price: number;
   user_id: number;
   created_at: string;
+  category_names: string; // Added to store comma-separated category names
 };
 
 interface ExportSalesDialogProps {
@@ -53,12 +53,14 @@ export function ExportSalesDialog({
     try {
       setIsExporting(true);
 
-      // Build the same query as in fetchInvoices
+      // Build the query to include category names
       let query = `
-        SELECT DISTINCT i.id, i.invoice_type, i.total_quantity, i.total_price, i.user_id, i.created_at
+        SELECT DISTINCT i.id, i.invoice_type, i.total_quantity, i.total_price, i.user_id, i.created_at,
+        GROUP_CONCAT(DISTINCT pc.name) as category_names
         FROM invoices i
         JOIN sold_products sp ON i.id = sp.invoice_id
         JOIN products p ON sp.product_id = p.id
+        LEFT JOIN product_categories pc ON p.category_id = pc.id
         WHERE 1=1
       `;
 
@@ -83,7 +85,7 @@ export function ExportSalesDialog({
         }
       }
 
-      query += ` ORDER BY i.created_at DESC`;
+      query += ` GROUP BY i.id ORDER BY i.created_at DESC`;
 
       const invoices = (await runSql(query)) as Invoice[];
 
@@ -95,6 +97,7 @@ export function ExportSalesDialog({
         Total_Quantity: invoice.total_quantity,
         Total_Price: invoice.total_price.toFixed(2),
         User_ID: invoice.user_id,
+        Category_Names: invoice.category_names || "N/A", // Added category_names
       }));
 
       if (exportFormat === "csv") {
@@ -146,7 +149,7 @@ export function ExportSalesDialog({
           <div>
             <label className="text-sm font-medium">Export Format</label>
             <Select value={exportFormat} onValueChange={setExportFormat}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select format" />
               </SelectTrigger>
               <SelectContent>

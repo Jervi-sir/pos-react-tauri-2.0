@@ -20,6 +20,7 @@ import BulkCreateProducts from './pages/inventory/bulk-create/bulk-create-produc
 import EntryInvoicesPage from './pages/invoices/entries/page';
 import { DocumentsPathProvider } from './context/document-path-context';
 import { StoreInfoProvider } from './context/store-info-context';
+import ZeroPriceProducts from './pages/inventory/zero-price-products/page';
 
 export const routes = {
   dashboard: '/',
@@ -28,6 +29,7 @@ export const routes = {
   invoicesEntries: '/invoices/entries',
   pos: '/pos',
   BulkCreateProducts: '/bulk-create-products',
+  ZeroPriceProducts: '/zero-price-products',
   productInventory: '/product-inventory',
   users: '/users',
   sql: '/sql',
@@ -48,8 +50,9 @@ function App() {
         { path: routes.categories, element: <CategoriesPage /> },
         { path: routes.invoicesSales, element: <SalesPage /> },
         { path: routes.invoicesEntries, element: <EntryInvoicesPage /> },
-        { path: routes.pos, element: <PosPage /> },
         { path: routes.BulkCreateProducts, element: <BulkCreateProducts /> },
+        { path: routes.ZeroPriceProducts, element: <ZeroPriceProducts /> },
+        { path: routes.pos, element: <PosPage /> },
         { path: routes.productInventory, element: <ProductsPage /> },
         { path: routes.users, element: <UsersPage /> },
         { path: routes.sql, element: <SqlQueriesPage /> },

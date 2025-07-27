@@ -116,7 +116,7 @@ export function ExportProductsDialog({ categoryId, searchQuery }: ExportProducts
           <div>
             <label className="text-sm font-medium">Export Format</label>
             <Select value={exportFormat} onValueChange={setExportFormat}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select format" />
               </SelectTrigger>
               <SelectContent>

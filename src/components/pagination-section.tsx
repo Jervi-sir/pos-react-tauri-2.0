@@ -18,7 +18,12 @@ export const PaginationSection = ({
   if (pageCount <= 1) return null;
 
   // Calculate the range of pages to display
-  const getPageRange = () => {
+  const getPageRange = (): (number | "...")[] => {
+    // If maxPagesToShow is larger than or equal to pageCount, show all pages
+    if (maxPagesToShow >= pageCount) {
+      return Array.from({ length: pageCount }, (_, i) => i + 1);
+    }
+
     const delta = Math.floor(maxPagesToShow / 2); // Pages to show on each side of current page
     let start = Math.max(1, page - delta);
     let end = Math.min(pageCount, page + delta);
@@ -32,7 +37,7 @@ export const PaginationSection = ({
       }
     }
 
-    const pages: (number | string)[] = [];
+    const pages: (number | "...")[] = [];
 
     // Always include the first page
     pages.push(1);
@@ -42,11 +47,9 @@ export const PaginationSection = ({
       pages.push("...");
     }
 
-    // Add pages in the calculated range
+    // Add pages in the calculated range, ensuring pageCount is included if in range
     for (let i = start; i <= end; i++) {
-      if (i !== 1 && i !== pageCount) {
-        pages.push(i);
-      }
+      pages.push(i);
     }
 
     // Add ellipsis if there's a gap between end and last page
@@ -55,7 +58,7 @@ export const PaginationSection = ({
     }
 
     // Always include the last page if not already included
-    if (end < pageCount) {
+    if (end < pageCount && !pages.includes(pageCount)) {
       pages.push(pageCount);
     }
 
@@ -69,30 +72,36 @@ export const PaginationSection = ({
         size="sm"
         disabled={page === 1}
         onClick={() => setPage((p) => p - 1)}
+        aria-label="Previous page"
       >
         Prev
       </Button>
 
       {/* Page Numbers */}
-      {getPageRange().map((pageNum, index) => (
-        <Button
-          key={index}
-          size="sm"
-          variant={pageNum === page ? "default" : "outline"}
-          disabled={pageNum === "..."}
-          onClick={() =>
-            typeof pageNum === "number" && setPage(pageNum)
-          }
-        >
-          {pageNum}
-        </Button>
-      ))}
+      {getPageRange().map((pageNum, index) =>
+        pageNum === "..." ? (
+          <span key={index} className="px-2 py-1 text-center align-middle">
+            ...
+          </span>
+        ) : (
+          <Button
+            key={index}
+            size="sm"
+            variant={pageNum === page ? "default" : "outline"}
+            onClick={() => setPage(pageNum)}
+            aria-label={`Page ${pageNum}`}
+          >
+            {pageNum}
+          </Button>
+        )
+      )}
 
       {/* Next Button */}
       <Button
         size="sm"
         disabled={page === pageCount}
         onClick={() => setPage((p) => p + 1)}
+        aria-label="Next page"
       >
         Next
       </Button>

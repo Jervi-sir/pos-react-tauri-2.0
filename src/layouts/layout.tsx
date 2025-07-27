@@ -79,11 +79,11 @@ const AppLayout = () => {
               />
               <div className="ml-auto space-x-3" >
                 <ModeToggle />
-                <Button variant={isActive ? 'default' : 'outline'} size={'icon'} >
-                  <Link to={routes.settings} >
+                <Link to={routes.settings} >
+                  <Button variant={isActive ? 'default' : 'outline'} size={'icon'} >
                     <Settings className="h-[1.2rem] w-[1.2rem] transition-all" />
-                  </Link>
-                </Button>
+                  </Button>
+                </Link>
               </div>
             </div>
           </header>

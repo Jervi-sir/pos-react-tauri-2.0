@@ -27,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // On mount, restore user from localStorage
-    const stored = localStorage.getItem("posUser");
+    const stored = localStorage.getItem("POSUser");
     if (stored) setUser(JSON.parse(stored));
     setLoading(false);
   }, []);
@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const u = res[0];
     if (u) {
       setUser(u);
-      localStorage.setItem("posUser", JSON.stringify(u));
+      localStorage.setItem("POSUser", JSON.stringify(u));
       return true;
     }
     return false;
@@ -47,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("posUser");
+    localStorage.removeItem("POSUser");
   };
 
   return (

@@ -23,17 +23,17 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ExportSalesDialog } from "./export-sale-invoices-dialog";
 import { PaginationSection } from "@/components/pagination-section";
+import { useImagePath } from "@/context/document-path-context";
 
 type Invoice = {
   id: number;
   invoice_type: string;
   total_quantity: number;
   total_price: number;
-  user_id: number; // Keep user_id for reference
-  user_name?: string; // Change to string and make optional
+  user_id: number;
+  user_name?: string;
   created_at: string;
 };
-
 
 type SoldProduct = {
   id: number;
@@ -43,6 +43,7 @@ type SoldProduct = {
   price_unit: number;
   total_price: number;
   image_path: string | null;
+  category_name: string | null; // Added category_name
 };
 
 type StoreInfo = {
@@ -59,9 +60,15 @@ type User = {
   name: string;
 };
 
+type Category = {
+  id: number;
+  name: string;
+};
+
 export default function SalesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]); // Added for categories
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedInvoiceType, setSelectedInvoiceType] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>("");
@@ -71,9 +78,9 @@ export default function SalesPage() {
   const [soldProducts, setSoldProducts] = useState<SoldProduct[]>([]);
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState<number>(1); // Current page
-  const [pageSize] = useState<number>(10); // Number of invoices per page
-  const [totalInvoices, setTotalInvoices] = useState<number>(0); // Total number of invoices
+  const [page, setPage] = useState<number>(1);
+  const [pageSize] = useState<number>(10);
+  const [totalInvoices, setTotalInvoices] = useState<number>(0);
   const printRef = useRef<HTMLDivElement>(null);
 
   // Fetch store info
@@ -104,19 +111,31 @@ export default function SalesPage() {
     }
   };
 
+  // Fetch categories
+  const fetchCategories = async () => {
+    try {
+      const query = `SELECT id, name FROM product_categories ORDER BY name`;
+      const result = await runSql(query);
+      setCategories(result as Category[]);
+    } catch (err) {
+      console.error("Error fetching categories:", err);
+      toast.error(`Failed to fetch categories: ${(err as Error).message}`);
+    }
+  };
+
   // Fetch invoices with filters and pagination
   const fetchInvoices = async () => {
     try {
       // First, get the total count of invoices for pagination
       let countQuery = `
-      SELECT COUNT(DISTINCT i.id) as total
-      FROM invoices i
-      JOIN sold_products sp ON i.id = sp.invoice_id
-      JOIN products p ON sp.product_id = p.id
-      LEFT JOIN users u ON i.user_id = u.id
-      WHERE 1=1
-      AND i.invoice_type = 'sold'
-    `;
+        SELECT COUNT(DISTINCT i.id) as total
+        FROM invoices i
+        JOIN sold_products sp ON i.id = sp.invoice_id
+        JOIN products p ON sp.product_id = p.id
+        LEFT JOIN users u ON i.user_id = u.id
+        WHERE 1=1
+        AND i.invoice_type = 'sold'
+      `;
 
       if (selectedCategory !== "all") {
         countQuery += ` AND p.category_id = ${parseInt(selectedCategory)}`;
@@ -144,15 +163,15 @@ export default function SalesPage() {
 
       // Now fetch the paginated invoices
       let query = `
-      SELECT DISTINCT i.id, i.invoice_type, i.total_quantity, i.total_price, i.user_id, 
-             u.name AS user_name, i.created_at
-      FROM invoices i
-      JOIN sold_products sp ON i.id = sp.invoice_id
-      JOIN products p ON sp.product_id = p.id
-      LEFT JOIN users u ON i.user_id = u.id
-      WHERE 1=1
-      AND i.invoice_type = 'sold'
-    `;
+        SELECT DISTINCT i.id, i.invoice_type, i.total_quantity, i.total_price, i.user_id, 
+               u.name AS user_name, i.created_at
+        FROM invoices i
+        JOIN sold_products sp ON i.id = sp.invoice_id
+        JOIN products p ON sp.product_id = p.id
+        LEFT JOIN users u ON i.user_id = u.id
+        WHERE 1=1
+        AND i.invoice_type = 'sold'
+      `;
 
       if (selectedCategory !== "all") {
         query += ` AND p.category_id = ${parseInt(selectedCategory)}`;
@@ -176,8 +195,6 @@ export default function SalesPage() {
       query += ` ORDER BY i.created_at DESC`;
       query += ` LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`;
 
-      console.log('query: ', query);
-
       const results = await runSql(query);
       setInvoices(results as Invoice[]);
     } catch (err) {
@@ -187,14 +204,14 @@ export default function SalesPage() {
     }
   };
 
-
   // Fetch sold products for a specific invoice
   const fetchSoldProducts = async (invoiceId: number) => {
     try {
       const query = `
-        SELECT sp.id, sp.product_id, p.name, sp.quantity, sp.price_unit, sp.total_price, p.image_path
+        SELECT sp.id, sp.product_id, p.name, sp.quantity, sp.price_unit, sp.total_price, p.image_path, pc.name as category_name
         FROM sold_products sp
         JOIN products p ON sp.product_id = p.id
+        LEFT JOIN product_categories pc ON p.category_id = pc.id
         WHERE sp.invoice_id = ${invoiceId}
       `;
       const results = await runSql(query);
@@ -214,25 +231,25 @@ export default function SalesPage() {
     const win = window.open("", "PRINT", "height=600,width=800");
     if (win) {
       win.document.write(`
-      <html>
-        <head>
-          <title>Receipt_${selectedInvoice.id}_${new Date().toISOString()}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 2rem; font-size: 12px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ccc; padding: 8px; }
-            th { background: #f0f0f0; text-align: left; }
-            .text-right { text-align: right; }
-            .font-bold { font-weight: bold; }
-            .text-center { text-center: center; }
-            img { max-width: 100px; max-height: 100px; }
-          </style>
-        </head>
-        <body>
-          ${printContents}
-        </body>
-      </html>
-    `);
+        <html>
+          <head>
+            <title>Receipt_${selectedInvoice.id}_${new Date().toISOString()}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 2rem; font-size: 12px; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { border: 1px solid #ccc; padding: 8px; }
+              th { background: #f0f0f0; text-align: left; }
+              .text-right { text-align: right; }
+              .font-bold { font-weight: bold; }
+              .text-center { text-align: center; }
+              img { max-width: 100px; max-height: 100px; }
+            </style>
+          </head>
+          <body>
+            ${printContents}
+          </body>
+        </html>
+      `);
       win.document.close();
       win.focus();
       win.print();
@@ -255,7 +272,7 @@ export default function SalesPage() {
       return;
     }
     setStartDate(value);
-    setPage(1); // Reset to first page when filters change
+    setPage(1);
   };
 
   // Validate end date
@@ -265,7 +282,7 @@ export default function SalesPage() {
       return;
     }
     setEndDate(value);
-    setPage(1); // Reset to first page when filters change
+    setPage(1);
   };
 
   // Reset page when filters change
@@ -276,6 +293,7 @@ export default function SalesPage() {
   useEffect(() => {
     fetchStoreInfo();
     fetchUsers();
+    fetchCategories(); // Added fetchCategories
     fetchInvoices();
   }, [selectedCategory, selectedInvoiceType, startDate, endDate, userId, page]);
 
@@ -318,6 +336,19 @@ export default function SalesPage() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={selectedCategory} onValueChange={(value) => { setSelectedCategory(value); setPage(1); }}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id.toString()}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Button
           variant="outline"
@@ -327,7 +358,7 @@ export default function SalesPage() {
             setSelectedInvoiceType("all");
             setSelectedCategory("all");
             setUserId("all");
-            setPage(1); // Reset page when clearing filters
+            setPage(1);
           }}
           className="w-full sm:w-auto"
         >
@@ -369,8 +400,8 @@ export default function SalesPage() {
                   <TableCell>{invoice.id}</TableCell>
                   <TableCell>{format(new Date(invoice.created_at), "PPP p")}</TableCell>
                   <TableCell>{invoice.total_quantity}</TableCell>
-                  <TableCell>${invoice.total_price.toFixed(2)}</TableCell>
-                  <TableCell>{invoice.user_name || `Unknown (ID: ${invoice.user_id})`}</TableCell> {/* Display user_name */}
+                  <TableCell>DA {invoice.total_price.toFixed(2)}</TableCell>
+                  <TableCell>{invoice.user_name || `Unknown (ID: ${invoice.user_id})`}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="outline"
@@ -387,7 +418,7 @@ export default function SalesPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={6} className="text-center">
                   No sales found.
                 </TableCell>
               </TableRow>
@@ -412,7 +443,7 @@ export default function SalesPage() {
               <DialogTitle>Invoice #{selectedInvoice.id}</DialogTitle>
               <DialogDescription>
                 Details for {selectedInvoice.invoice_type} on {format(new Date(selectedInvoice.created_at), "PPP p")}.
-                Total: ${selectedInvoice.total_price.toFixed(2)}
+                Total: DA {selectedInvoice.total_price.toFixed(2)}
               </DialogDescription>
             </DialogHeader>
             <Table>
@@ -420,6 +451,7 @@ export default function SalesPage() {
                 <TableRow>
                   <TableHead>Image</TableHead>
                   <TableHead>Product</TableHead>
+                  <TableHead>Category</TableHead> {/* Added Category column */}
                   <TableHead>Quantity</TableHead>
                   <TableHead>Price/Unit</TableHead>
                   <TableHead>Total</TableHead>
@@ -431,7 +463,7 @@ export default function SalesPage() {
                     <TableCell>
                       {product.image_path ? (
                         <img
-                          src={product.image_path}
+                          src={useImagePath(product.image_path)}
                           alt={product.name}
                           className="w-8 h-8 object-cover rounded"
                         />
@@ -442,9 +474,10 @@ export default function SalesPage() {
                       )}
                     </TableCell>
                     <TableCell>{product.name}</TableCell>
+                    <TableCell>{product.category_name || "N/A"}</TableCell> {/* Display category_name */}
                     <TableCell>{product.quantity}</TableCell>
-                    <TableCell>${product.price_unit.toFixed(2)}</TableCell>
-                    <TableCell>${product.total_price.toFixed(2)}</TableCell>
+                    <TableCell>DA {product.price_unit.toFixed(2)}</TableCell>
+                    <TableCell>DA {product.total_price.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -465,7 +498,7 @@ export default function SalesPage() {
           <div className="text-center">
             {storeInfo?.logo_path && (
               <img
-                src={storeInfo.logo_path}
+                src={useImagePath(storeInfo.logo_path)}
                 alt={storeInfo.name}
                 className="w-24 h-24 mx-auto mb-4"
               />
@@ -484,6 +517,7 @@ export default function SalesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Product</TableHead>
+                <TableHead>Category</TableHead> {/* Added Category column */}
                 <TableHead>Quantity</TableHead>
                 <TableHead>Price/Unit</TableHead>
                 <TableHead>Total</TableHead>
@@ -493,15 +527,16 @@ export default function SalesPage() {
               {soldProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>{product.name}</TableCell>
+                  <TableCell>{product.category_name || "N/A"}</TableCell> {/* Display category_name */}
                   <TableCell>{product.quantity}</TableCell>
-                  <TableCell>${product.price_unit.toFixed(2)}</TableCell>
-                  <TableCell>${product.total_price.toFixed(2)}</TableCell>
+                  <TableCell>DA {product.price_unit.toFixed(2)}</TableCell>
+                  <TableCell>DA {product.total_price.toFixed(2)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
           <div className="text-right mt-4">
-            <p className="font-semibold">Total: ${selectedInvoice?.total_price.toFixed(2)}</p>
+            <p className="font-semibold">Total: DA {selectedInvoice?.total_price.toFixed(2)}</p>
           </div>
         </div>
       </div>

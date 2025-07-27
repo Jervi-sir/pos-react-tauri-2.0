@@ -1,3 +1,4 @@
+// Modified PosPage.tsx
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +22,11 @@ type Product = {
   id: number;
   name: string;
   barcode: string | null;
-  current_price_unit: number;
+  current_price_unit: number | null;
+  original_bought_price: number | null;
   quantity: number;
   image_path: string | null;
+  category_name: string;
 };
 
 type SaleItem = {
@@ -31,9 +34,11 @@ type SaleItem = {
   name: string;
   barcode: string | null;
   price_unit: number;
+  original_bought_price: number;
   quantity: number;
   stock: number;
   image_path: string | null;
+  category_name: string;
 };
 
 type StoreInfo = {
@@ -45,7 +50,6 @@ type StoreInfo = {
   logo_path: string | null;
 };
 
-// New ReceiptPrintDialog component
 type ReceiptPrintDialogProps = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -101,7 +105,7 @@ function ReceiptPrintDialog({ open, onOpenChange, saleItems, storeInfo, invoiceI
         <div ref={receiptRef} id="receipt-print-area" className="text-sm">
           {saleItems.length > 0 ? (
             <>
-              <div className="text-center mb-2">
+              <div className="flex gap-4 mb-2">
                 {storeInfo?.logo_path && (
                   <img
                     src={useImagePath(storeInfo.logo_path)}
@@ -109,12 +113,14 @@ function ReceiptPrintDialog({ open, onOpenChange, saleItems, storeInfo, invoiceI
                     style={{ maxWidth: "100px", maxHeight: "100px" }}
                   />
                 )}
-                <div className="font-bold text-lg">{storeInfo?.name || "Store Name"}</div>
-                {storeInfo?.address && <div>{storeInfo.address}</div>}
-                {storeInfo?.phone && <div>Phone: {storeInfo.phone}</div>}
-                {storeInfo?.email && <div>Email: {storeInfo.email}</div>}
-                {/* {storeInfo?.tax_id && <div>Tax ID: {storeInfo.tax_id}</div>} */}
+                <div>
+                  <div className="font-bold text-lg">{storeInfo?.name || "Store Name"}</div>
+                  {storeInfo?.address && <div>{storeInfo.address}</div>}
+                  {storeInfo?.phone && <div>Phone: {storeInfo.phone}</div>}
+                  {storeInfo?.email && <div>Email: {storeInfo.email}</div>}
+                </div>
               </div>
+              <hr />
               <div className="font-bold text-lg mb-1">Receipt #{invoiceId || "N/A"}</div>
               <div>Date: {new Date().toLocaleString()}</div>
               <table className="min-w-full mt-3 mb-2 border">
@@ -124,6 +130,7 @@ function ReceiptPrintDialog({ open, onOpenChange, saleItems, storeInfo, invoiceI
                     <th className="text-left p-1">Barcode</th>
                     <th className="text-right p-1">Qty</th>
                     <th className="text-right p-1">Unit</th>
+                    {/* <th className="text-right p-1">Orig. Bought</th> */}
                     <th className="text-right p-1">Subtotal</th>
                   </tr>
                 </thead>
@@ -133,15 +140,21 @@ function ReceiptPrintDialog({ open, onOpenChange, saleItems, storeInfo, invoiceI
                       <td className="p-1">{item.name}</td>
                       <td className="p-1">{item.barcode || "N/A"}</td>
                       <td className="p-1 text-right">{item.quantity}</td>
-                      <td className="p-1 text-right">${item.price_unit.toFixed(2)}</td>
-                      <td className="p-1 text-right">${(item.quantity * item.price_unit).toFixed(2)}</td>
+                      <td className="p-1 text-right">DA{(item.price_unit ?? 0).toFixed(2)}</td>
+                      {/* <td className="p-1 text-right">DA{(item.original_bought_price ?? 0).toFixed(2)}</td> */}
+                      <td className="p-1 text-right">DA{(item.quantity * (item.price_unit ?? 0)).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               <div className="text-right font-bold mt-2">
-                TOTAL: ${saleItems.reduce((sum, item) => sum + item.quantity * item.price_unit, 0).toFixed(2)}
+                TOTAL: DA{' '}
+                {saleItems.reduce((sum, item) => sum + item.quantity * (item.price_unit ?? 0), 0).toFixed(2)}
               </div>
+              {/* <div className="text-right font-bold mt-1">
+                TOTAL ORIGINAL BOUGHT: DA{' '}
+                {saleItems.reduce((sum, item) => sum + item.quantity * (item.original_bought_price ?? 0), 0).toFixed(2)}
+              </div> */}
             </>
           ) : (
             <div className="py-8 text-center text-gray-500">No sale items</div>
@@ -174,7 +187,6 @@ export default function PosPage() {
   const [openPrintDialog, setOpenPrintDialog] = useState(false);
   const [lastInvoiceId, setLastInvoiceId] = useState<number | undefined>(undefined);
 
-  // Fetch store info
   const fetchStoreInfo = async () => {
     try {
       const query = `SELECT * FROM store_info LIMIT 1`;
@@ -189,7 +201,6 @@ export default function PosPage() {
     }
   };
 
-  // Fetch search results
   const fetchSearchResults = async (query: string) => {
     if (!query) {
       setSearchResults([]);
@@ -198,9 +209,12 @@ export default function PosPage() {
     try {
       const escapedSearch = query.replace(/'/g, "''");
       const searchQuery = `
-        SELECT id, name, barcode, current_price_unit, quantity, image_path
-        FROM products
-        WHERE name LIKE '%${escapedSearch}%' OR barcode = '${escapedSearch}'
+        SELECT p.id, p.name, p.barcode, p.current_price_unit, p.original_bought_price, p.quantity, p.image_path, pc.name as category_name
+        FROM products p
+        LEFT JOIN product_categories pc ON p.category_id = pc.id
+        WHERE (p.name LIKE '%${escapedSearch}%' OR p.barcode = '${escapedSearch}')
+        AND p.current_price_unit IS NOT NULL AND p.current_price_unit > 0.0
+        AND p.original_bought_price IS NOT NULL AND p.original_bought_price >= 0.0
         LIMIT 10
       `;
       const results = await runSql(searchQuery);
@@ -210,18 +224,20 @@ export default function PosPage() {
         const existingItem = saleItems.find((item) => item.product_id === exactMatch.id);
         if (existingItem) {
           if (existingItem.quantity < existingItem.stock) {
-            setSaleItems((items) =>
-              items.map((item) =>
-                item.product_id === exactMatch.id
-                  ? { ...item, quantity: item.quantity + 1 }
-                  : item
-              )
-            );
+            setSaleItems((items) => items.map((item) =>
+              item.product_id === exactMatch.id
+                ? { ...item, quantity: item.quantity + 1 }
+                : item
+            ));
             toast.success(`Added 1 more ${existingItem.name} to sale.`);
           } else {
             toast.error(`Cannot add more ${existingItem.name}. Stock limit: ${existingItem.stock}.`);
           }
         } else {
+          if (exactMatch.current_price_unit == null || exactMatch.original_bought_price == null) {
+            toast.error(`Cannot add ${exactMatch.name}: Price information missing.`);
+            return;
+          }
           setSaleItems([
             ...saleItems,
             {
@@ -229,9 +245,11 @@ export default function PosPage() {
               name: exactMatch.name,
               barcode: exactMatch.barcode,
               price_unit: exactMatch.current_price_unit,
+              original_bought_price: exactMatch.original_bought_price,
               quantity: 1,
               stock: exactMatch.quantity,
               image_path: exactMatch.image_path,
+              category_name: exactMatch.category_name,
             },
           ]);
           toast.success(`Added ${exactMatch.name} to sale.`);
@@ -248,8 +266,11 @@ export default function PosPage() {
     }
   };
 
-  // Add product to sale
   const addToSale = (product: Product) => {
+    if (product.current_price_unit == null || product.original_bought_price == null) {
+      toast.error(`Cannot add ${product.name}: Price information missing.`);
+      return;
+    }
     const existingItem = saleItems.find((item) => item.product_id === product.id);
     if (existingItem) {
       if (existingItem.quantity < existingItem.stock) {
@@ -272,9 +293,11 @@ export default function PosPage() {
           name: product.name,
           barcode: product.barcode,
           price_unit: product.current_price_unit,
+          original_bought_price: product.original_bought_price,
           quantity: 1,
           stock: product.quantity,
           image_path: product.image_path,
+          category_name: product.category_name,
         },
       ]);
       toast.success(`Added ${product.name} to sale.`);
@@ -283,42 +306,43 @@ export default function PosPage() {
     setSearchResults([]);
   };
 
-  // Update quantity
   const updateQuantity = (product_id: number, newQuantity: string) => {
     const qty = parseInt(newQuantity, 10);
     setSaleItems((items) =>
       items.map((item) =>
         item.product_id === product_id
           ? {
-            ...item,
-            quantity: isNaN(qty) || qty < 1 ? 1 : qty > item.stock ? item.stock : qty,
-          }
+              ...item,
+              quantity: isNaN(qty) || qty < 1 ? 1 : qty > item.stock ? item.stock : qty,
+            }
           : item
       )
     );
   };
 
-  // Remove item
   const removeItem = (product_id: number) => {
     setSaleItems((items) => items.filter((item) => item.product_id !== product_id));
     toast.success("Item removed from sale.");
   };
 
-  // Calculate total
   const calculateTotal = () => {
-    return saleItems.reduce((sum, item) => sum + item.quantity * item.price_unit, 0).toFixed(2);
+    return saleItems.reduce((sum, item) => sum + item.quantity * (item.price_unit ?? 0), 0).toFixed(2);
   };
 
-  // Sanitize number inputs to prevent SQL injection
+  const calculateTotalOriginalBoughtPrice = () => {
+    return saleItems
+      .reduce((sum, item) => sum + item.quantity * (item.original_bought_price ?? 0), 0)
+      .toFixed(2);
+  };
+
   const sanitizeNumber = (value: number) => {
     const num = Number(value);
-    if (isNaN(num) || !Number.isInteger(num) || num < 0) {
+    if (isNaN(num) || !Number.isFinite(num) || num < 0) {
       throw new Error("Invalid number input");
     }
     return num;
   };
 
-  // Complete sale
   const completeSale = async () => {
     if (saleItems.length === 0) {
       setError("No items in the sale.");
@@ -331,17 +355,23 @@ export default function PosPage() {
         toast.error(`Quantity for ${item.name} exceeds available stock (${item.stock}).`);
         return;
       }
+      if (item.price_unit == null || item.original_bought_price == null) {
+        setError(`Price information missing for ${item.name}.`);
+        toast.error(`Price information missing for ${item.name}.`);
+        return;
+      }
     }
 
     setLoading(true);
     try {
-      const user_id = 1; // Replace with actual user_id
+      const user_id = 1;
       const total_quantity = saleItems.reduce((sum, item) => sum + item.quantity, 0);
       const total_price = parseFloat(calculateTotal());
+      const total_original_bought_price = parseFloat(calculateTotalOriginalBoughtPrice());
 
       const invoiceQuery = `
-        INSERT INTO invoices (invoice_type, total_quantity, total_price, user_id)
-        VALUES ('sold', ${sanitizeNumber(total_quantity)}, ${total_price}, ${sanitizeNumber(user_id)})
+        INSERT INTO invoices (invoice_type, total_quantity, total_price, total_original_bought_price, user_id)
+        VALUES ('sold', ${sanitizeNumber(total_quantity)}, ${sanitizeNumber(total_price)}, ${sanitizeNumber(total_original_bought_price)}, ${sanitizeNumber(user_id)})
       `;
       await runSql(invoiceQuery);
 
@@ -352,10 +382,11 @@ export default function PosPage() {
       setLastInvoiceId(invoice_id);
 
       for (const item of saleItems) {
-        const total_item_price = (item.quantity * item.price_unit).toFixed(2);
+        const total_item_price = sanitizeNumber(item.quantity * item.price_unit);
+        const total_item_original_bought_price = sanitizeNumber(item.quantity * item.original_bought_price);
         const soldProductQuery = `
-          INSERT INTO sold_products (product_id, invoice_id, quantity, total_price, price_unit)
-          VALUES (${sanitizeNumber(item.product_id)}, ${sanitizeNumber(invoice_id)}, ${sanitizeNumber(item.quantity)}, ${total_item_price}, ${item.price_unit})
+          INSERT INTO sold_products (product_id, invoice_id, quantity, total_price, price_unit, original_bought_price, total_original_bought_price)
+          VALUES (${sanitizeNumber(item.product_id)}, ${sanitizeNumber(invoice_id)}, ${sanitizeNumber(item.quantity)}, ${total_item_price}, ${sanitizeNumber(item.price_unit)}, ${sanitizeNumber(item.original_bought_price)}, ${total_item_original_bought_price})
         `;
         await runSql(soldProductQuery);
 
@@ -368,8 +399,8 @@ export default function PosPage() {
         await runSql(updateStockQuery);
 
         const historyQuery = `
-          INSERT INTO history_product_entries (product_id, invoice_id, quantity, purchase_price, entry_type)
-          VALUES (${sanitizeNumber(item.product_id)}, ${sanitizeNumber(invoice_id)}, ${-sanitizeNumber(item.quantity)}, ${item.price_unit}, 'purchase')
+          INSERT INTO history_product_entries (product_id, invoice_id, quantity, purchase_price, original_bought_price, entry_type)
+          VALUES (${sanitizeNumber(item.product_id)}, ${sanitizeNumber(invoice_id)}, ${-sanitizeNumber(item.quantity)}, ${sanitizeNumber(item.price_unit)}, ${sanitizeNumber(item.original_bought_price)}, 'purchase')
         `;
         await runSql(historyQuery);
       }
@@ -379,7 +410,7 @@ export default function PosPage() {
       setError(null);
       setOpenConfirmModal(false);
       setSaleCompleted(true);
-      setOpenPrintDialog(true); // Open print dialog instead of printing directly
+      setOpenPrintDialog(true);
     } catch (err) {
       console.error("Error completing sale:", err);
       setError(`Failed to complete sale: ${(err as Error).message}`);
@@ -389,7 +420,6 @@ export default function PosPage() {
     }
   };
 
-  // Start new session
   const startNewSession = () => {
     setSaleCompleted(false);
     setLastSaleItems([]);
@@ -408,13 +438,13 @@ export default function PosPage() {
   return (
     <>
       <h1 className="text-2xl font-bold">Point of Sale</h1>
-      {/* Search Input */}
       <div>
         <Input
           placeholder="Search by name or barcode"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full sm:w-[400px]"
+          disabled={saleCompleted}
         />
         {searchResults.length > 0 && (
           <div className="border rounded-md shadow mt-2 max-h-[200px] overflow-y-auto">
@@ -423,8 +453,11 @@ export default function PosPage() {
                 <TableRow>
                   <TableHead>Image</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
                   <TableHead>Barcode</TableHead>
                   <TableHead>Stock</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Orig. Bought</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -448,8 +481,11 @@ export default function PosPage() {
                       )}
                     </TableCell>
                     <TableCell>{product.name}</TableCell>
+                    <TableCell>{product.category_name || "N/A"}</TableCell>
                     <TableCell>{product.barcode || "N/A"}</TableCell>
                     <TableCell>{product.quantity}</TableCell>
+                    <TableCell>DA{(product.current_price_unit ?? 0).toFixed(2)}</TableCell>
+                    <TableCell>DA{(product.original_bought_price ?? 0).toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -457,7 +493,6 @@ export default function PosPage() {
           </div>
         )}
       </div>
-      {/* Sale Table */}
       <div className="border rounded-md shadow overflow-x-auto mb-6">
         <Table>
           <TableHeader>
@@ -465,7 +500,9 @@ export default function PosPage() {
               <TableHead>Image</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Barcode</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Price/Unit</TableHead>
+              <TableHead>Orig. Bought</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead>Quantity</TableHead>
               <TableHead>Total</TableHead>
@@ -491,7 +528,9 @@ export default function PosPage() {
                   </TableCell>
                   <TableCell>{item.name}</TableCell>
                   <TableCell>{item.barcode || "N/A"}</TableCell>
-                  <TableCell>${item.price_unit.toFixed(2)}</TableCell>
+                  <TableCell>{item.category_name}</TableCell>
+                  <TableCell>DA{(item.price_unit ?? 0).toFixed(2)}</TableCell>
+                  <TableCell>DA{(item.original_bought_price ?? 0).toFixed(2)}</TableCell>
                   <TableCell>{item.stock}</TableCell>
                   <TableCell>
                     <Input
@@ -503,7 +542,7 @@ export default function PosPage() {
                       className="w-20"
                     />
                   </TableCell>
-                  <TableCell>${(item.quantity * item.price_unit).toFixed(2)}</TableCell>
+                  <TableCell>DA{(item.quantity * (item.price_unit ?? 0)).toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="destructive"
@@ -517,7 +556,7 @@ export default function PosPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="text-center">
+                <TableCell colSpan={10} className="text-center">
                   No items in sale.
                 </TableCell>
               </TableRow>
@@ -525,9 +564,12 @@ export default function PosPage() {
           </TableBody>
         </Table>
       </div>
-      {/* Total and Actions */}
       <div className="flex justify-between items-center mb-6">
-        <div className="text-lg font-semibold">Total: ${calculateTotal()}</div>
+        <div className="text-lg font-semibold">
+          Total: DA{' '}{calculateTotal()}
+          {/* <br />
+          Total Original Bought: DA{' '}{calculateTotalOriginalBoughtPrice()} */}
+        </div>
         <Dialog open={openConfirmModal} onOpenChange={setOpenConfirmModal}>
           <DialogTrigger asChild>
             <Button disabled={saleItems.length === 0}>Complete Sale</Button>
@@ -537,7 +579,10 @@ export default function PosPage() {
               <DialogTitle>Confirm Sale</DialogTitle>
               <DialogDescription>
                 Are you sure you want to complete this sale? This will update stock and create an invoice.
-                Total: ${calculateTotal()}
+                <br />
+                Total: DA{' '}{calculateTotal()}
+                {/* <br />
+                Total Original Bought: DA{' '}{calculateTotalOriginalBoughtPrice()} */}
               </DialogDescription>
             </DialogHeader>
             {error && <p className="text-red-500 text-sm">{error}</p>}
@@ -554,7 +599,6 @@ export default function PosPage() {
           </DialogContent>
         </Dialog>
       </div>
-      {/* Print and New Session Buttons */}
       {saleCompleted && (
         <div className="flex flex-col gap-2 mt-4">
           <Button onClick={() => setOpenPrintDialog(true)} disabled={lastSaleItems.length === 0}>

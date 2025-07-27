@@ -1,0 +1,12 @@
+- prix achat @done
+- prix de vente @done
+- stats of these @done
+- also add them during purchase and invoices @done
+- style the buttons action in the inventory @done
+- add clear filter in Inventory @done
+- show category when searching for the product @done
+- invoice is not being generated when adding products in bulk @done
+- add category when searching in POS @done
+- product image not showing in invoice sales @done
+- add a screen that will show only product with 0 current_price @done
+- check again about POS and original prices @done

@@ -4,8 +4,8 @@
   "settings": {
     "width": 2000,
     "height": 2000,
-    "scrollTop": -303.8854,
-    "scrollLeft": -472.8175,
+    "scrollTop": -302.3323,
+    "scrollLeft": -232.688,
     "zoomLevel": 0.76,
     "show": 431,
     "database": 4,
@@ -686,7 +686,7 @@
         "options": 0,
         "ui": {
           "keys": 0,
-          "widthName": 77,
+          "widthName": 64,
           "widthComment": 60,
           "widthDataType": 60,
           "widthDefault": 60
@@ -1566,7 +1566,7 @@
         "options": 0,
         "ui": {
           "keys": 0,
-          "widthName": 68,
+          "widthName": 60,
           "widthComment": 60,
           "widthDataType": 60,
           "widthDefault": 60

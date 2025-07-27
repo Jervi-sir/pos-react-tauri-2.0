@@ -19,23 +19,27 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   // Define navigation items with canAccess as an array of roles
   const data = [
-    { name: 'Dashboard', url: routes.dashboard, icon: PanelBottom, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Inventory', url: routes.productInventory, icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Product', url: routes.product, icon: Frame, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Dashboard', url: routes.dashboard, icon: PanelBottom, canAccess: ['owner', 'admin', 'cashier', 'jervi'] },
+    { name: 'Inventory', url: routes.productInventory, icon: Frame, canAccess: ['owner', 'admin', 'cashier', 'jervi'] },
+    { name: 'Product', url: routes.product, icon: Frame, canAccess: ['owner', 'admin', 'cashier', 'jervi'] },
   ];
 
   const salesData = [
-    { name: 'Pos', url: routes.pos, icon: User2, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Invoices', url: routes.invoicesSales, icon: PieChart, canAccess: ['owner', 'admin', 'cashier'] },
-    { name: 'Invoices Entries', url: routes.invoicesEntries, icon: PieChart, canAccess: ['owner', 'admin', 'cashier'] },
+    { name: 'Pos', url: routes.pos, icon: User2, canAccess: ['owner', 'admin', 'cashier', 'jervi'] },
+    { name: 'Invoices Sales', url: routes.invoicesSales, icon: PieChart, canAccess: ['owner', 'admin', 'cashier', 'jervi'] },
+    { name: 'Invoices Entries', url: routes.invoicesEntries, icon: PieChart, canAccess: ['owner', 'admin', 'cashier', 'jervi'] },
   ];
 
   const adminData = [
-    { name: 'Users', url: routes.users, icon: Map, canAccess: ['admin', 'owner'] },
-    { name: 'Categories', url: routes.categories, icon: Map, canAccess: ['admin', 'owner'] },
+    { name: 'Users', url: routes.users, icon: Map, canAccess: ['admin', 'owner', 'jervi'] },
+    { name: 'Categories', url: routes.categories, icon: Map, canAccess: ['admin', 'owner', 'jervi'] },
     { name: 'Sql Queries', url: routes.sql, icon: TerminalIcon, canAccess: ['admin', 'jervi'] },
     { name: 'Sql Explorer', url: routes.sqlExplorer, icon: TerminalIcon, canAccess: ['admin', 'jervi'] },
   ];
+
+  React.useEffect(() => {
+    console.log('user:   ', user)
+  }, [])
 
   return (
     <Sidebar variant={sidebarVariant} collapsible="icon" {...props}>
