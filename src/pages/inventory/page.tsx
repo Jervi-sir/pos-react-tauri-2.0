@@ -22,6 +22,7 @@ import { useNavigate } from "react-router-dom";
 import { routes } from "@/main";
 import { ExportProductsDialog } from "./export-dialog";
 import { Eye } from "lucide-react";
+import { useImagePath } from "@/context/document-path-context";
 
 // Define the Product type based on your schema
 type Product = {
@@ -30,7 +31,7 @@ type Product = {
   barcode: string | null;
   current_price_unit: number;
   quantity: number;
-  image_base64: string | null;
+  image_path: string | null;
   category_id: number;
   category_name: string;
   created_at: string;
@@ -216,9 +217,9 @@ export default function ProductsPage() {
               products.map((product) => (
                 <tr key={product.id} className="border-t">
                   <td className="px-4 py-2">
-                    {product.image_base64 ? (
+                    {product.image_path ? (
                       <img
-                        src={product.image_base64}
+                        src={useImagePath(product.image_path)}
                         alt={product.name}
                         className="w-12 h-12 object-cover rounded"
                       />
@@ -252,9 +253,11 @@ export default function ProductsPage() {
                         name: product.name,
                         barcode: product.barcode,
                         current_price_unit: product.current_price_unit,
-                        image_base64: product.image_base64,
+                        category_id: product.category_id,
+                        image_path: product.image_path,
                       }}
                       fetchProducts={fetchProducts}
+                      categories={categories}
                     />
                     <DeleteProductDialog
                       product={{ id: product.id, name: product.name }}

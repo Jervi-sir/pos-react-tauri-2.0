@@ -1,4 +1,9 @@
 mod sqlite;
+use std::fs::{create_dir_all, File};
+use std::io::Write;
+use std::path::Path;
+use dirs_next::document_dir;
+use tauri::command;
 
 #[tauri::command]
 async fn run_sql(query: String) -> Result<serde_json::Value, String> {
@@ -55,11 +60,31 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[command]
+fn save_image(file_name: String, data: Vec<u8>) -> Result<String, String> {
+    // Get the Documents directory
+    let documents_dir = document_dir().ok_or_else(|| "Failed to get Documents directory".to_string())?;
+    let target_dir = documents_dir.join("pos").join("images");
+
+    // Create the directory if it doesn't exist
+    create_dir_all(&target_dir).map_err(|e| format!("Failed to create directory: {}", e))?;
+
+    // Construct the full file path
+    let file_path = target_dir.join(&file_name);
+    let file_path_str = file_path.to_str().ok_or_else(|| "Invalid file path".to_string())?.to_string();
+
+    // Write the file
+    let mut file = File::create(&file_path).map_err(|e| format!("Failed to create file: {}", e))?;
+    file.write_all(&data).map_err(|e| format!("Failed to write file: {}", e))?;
+
+    Ok(file_path_str)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, run_sql])
+        .invoke_handler(tauri::generate_handler![greet, run_sql, save_image])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

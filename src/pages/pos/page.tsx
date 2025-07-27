@@ -15,6 +15,7 @@ import {
 import { useDebounce } from "use-debounce";
 import { toast } from "sonner";
 import { runSql } from "@/runSql";
+import { useImagePath } from "@/context/document-path-context";
 
 type Product = {
   id: number;
@@ -22,7 +23,7 @@ type Product = {
   barcode: string | null;
   current_price_unit: number;
   quantity: number;
-  image_base64: string | null;
+  image_path: string | null;
 };
 
 type SaleItem = {
@@ -32,7 +33,7 @@ type SaleItem = {
   price_unit: number;
   quantity: number;
   stock: number;
-  image_base64: string | null;
+  image_path: string | null;
 };
 
 type StoreInfo = {
@@ -41,7 +42,7 @@ type StoreInfo = {
   phone: string | null;
   email: string | null;
   tax_id: string | null;
-  logo_base64: string | null;
+  logo_path: string | null;
 };
 
 // New ReceiptPrintDialog component
@@ -101,9 +102,9 @@ function ReceiptPrintDialog({ open, onOpenChange, saleItems, storeInfo, invoiceI
           {saleItems.length > 0 ? (
             <>
               <div className="text-center mb-2">
-                {storeInfo?.logo_base64 && (
+                {storeInfo?.logo_path && (
                   <img
-                    src={storeInfo.logo_base64}
+                    src={useImagePath(storeInfo.logo_path)}
                     alt="Store Logo"
                     style={{ maxWidth: "100px", maxHeight: "100px" }}
                   />
@@ -197,12 +198,13 @@ export default function PosPage() {
     try {
       const escapedSearch = query.replace(/'/g, "''");
       const searchQuery = `
-        SELECT id, name, barcode, current_price_unit, quantity, image_base64
+        SELECT id, name, barcode, current_price_unit, quantity, image_path
         FROM products
         WHERE name LIKE '%${escapedSearch}%' OR barcode = '${escapedSearch}'
         LIMIT 10
       `;
       const results = await runSql(searchQuery);
+      // @ts-ignore
       const exactMatch = results.find((product: Product) => product.barcode === query);
       if (exactMatch) {
         const existingItem = saleItems.find((item) => item.product_id === exactMatch.id);
@@ -229,7 +231,7 @@ export default function PosPage() {
               price_unit: exactMatch.current_price_unit,
               quantity: 1,
               stock: exactMatch.quantity,
-              image_base64: exactMatch.image_base64,
+              image_path: exactMatch.image_path,
             },
           ]);
           toast.success(`Added ${exactMatch.name} to sale.`);
@@ -272,7 +274,7 @@ export default function PosPage() {
           price_unit: product.current_price_unit,
           quantity: 1,
           stock: product.quantity,
-          image_base64: product.image_base64,
+          image_path: product.image_path,
         },
       ]);
       toast.success(`Added ${product.name} to sale.`);
@@ -288,9 +290,9 @@ export default function PosPage() {
       items.map((item) =>
         item.product_id === product_id
           ? {
-              ...item,
-              quantity: isNaN(qty) || qty < 1 ? 1 : qty > item.stock ? item.stock : qty,
-            }
+            ...item,
+            quantity: isNaN(qty) || qty < 1 ? 1 : qty > item.stock ? item.stock : qty,
+          }
           : item
       )
     );
@@ -433,9 +435,9 @@ export default function PosPage() {
                     className="cursor-pointer"
                   >
                     <TableCell>
-                      {product.image_base64 ? (
+                      {product.image_path ? (
                         <img
-                          src={product.image_base64}
+                          src={useImagePath(product.image_path)}
                           alt={product.name}
                           className="w-8 h-8 object-cover rounded"
                         />
@@ -475,9 +477,9 @@ export default function PosPage() {
               saleItems.map((item) => (
                 <TableRow key={item.product_id}>
                   <TableCell>
-                    {item.image_base64 ? (
+                    {item.image_path ? (
                       <img
-                        src={item.image_base64}
+                        src={useImagePath(item.image_path)}
                         alt={item.name}
                         className="w-8 h-8 object-cover rounded"
                       />

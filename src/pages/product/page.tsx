@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { routes } from "@/main";
 import { ExportInventoryHistoryDialog } from "./export-inventory-history";
 import { PaginationSection } from "@/components/pagination-section";
+import { useImagePath } from "@/context/document-path-context";
 
 type Product = {
   id: number;
@@ -15,7 +16,7 @@ type Product = {
   barcode: string | null;
   current_price_unit: number;
   quantity: number;
-  image_base64: string | null;
+  image_path: string | null;
   category_id: number;
   category_name: string;
   created_at: string;
@@ -36,7 +37,7 @@ type SearchResult = {
   id: number;
   name: string;
   barcode: string | null;
-  image_base64: string;
+  image_path: string;
 };
 
 export default function SingleProductPage() {
@@ -119,7 +120,7 @@ export default function SingleProductPage() {
     try {
       const escapedSearch = query.replace(/'/g, "''");
       const searchQuery = `
-        SELECT id, name, barcode, image_base64
+        SELECT id, name, barcode, image_path
         FROM products
         WHERE name LIKE '%${escapedSearch}%' OR barcode LIKE '%${escapedSearch}%'
         LIMIT 10
@@ -183,7 +184,7 @@ export default function SingleProductPage() {
                     className="cursor-pointer"
                   >
                     <TableCell>
-                      <img src={result.image_base64} className="h-14 w-14" />
+                      <img src={useImagePath(result.image_path)} className="h-14 w-14" />
                     </TableCell>
                     <TableCell>{result.name}</TableCell>
                     <TableCell>{result.barcode || "N/A"}</TableCell>
@@ -199,9 +200,9 @@ export default function SingleProductPage() {
         <div className="grid gap-6">
           <div className="border rounded-md p-6">
             <div className="flex flex-col sm:flex-row gap-6">
-              {product.image_base64 ? (
+              {product.image_path ? (
                 <img
-                  src={product.image_base64}
+                  src={useImagePath(product.image_path)}
                   alt={product.name}
                   className="w-24 h-24 object-cover rounded"
                 />

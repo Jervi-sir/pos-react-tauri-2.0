@@ -12,23 +12,25 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { runSql } from "@/runSql";
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const NewProduct = ({ categories, fetchProducts }: any) => {
   const [error, setError] = useState<string | null>(null);
-  const [imageBase64, setImageBase64] = useState<string | null>(null);
-  // @ts-ignore
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [barcode, setBarcode] = useState<string | null>(null);
   const [currentPriceUnit, setCurrentPriceUnit] = useState("");
   const [quantity, setQuantity] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-
-  // Compress and resize image to 200x200 pixels
-  const compressAndResizeImage = (file: File): Promise<string> => {
+  // Compress and crop image to 200x200 pixels
+  const compressAndCropImage = (file: File): Promise<Uint8Array> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
       const reader = new FileReader();
@@ -46,29 +48,38 @@ export const NewProduct = ({ categories, fetchProducts }: any) => {
           return;
         }
 
-        // Set canvas size to 200x200
+        // Set canvas to 200x200
         canvas.width = 200;
         canvas.height = 200;
 
-        // Calculate scaling to maintain aspect ratio
-        const scale = Math.min(img.width, img.height) / 200;
-        const width = img.width / scale;
-        const height = img.height / scale;
-        const offsetX = (200 - width) / 2;
-        const offsetY = (200 - height) / 2;
+        // Crop to square (use the smaller dimension)
+        const size = Math.min(img.width, img.height);
+        const offsetX = (img.width - size) / 2;
+        const offsetY = (img.height - size) / 2;
 
-        // Draw resized image
-        ctx.drawImage(img, offsetX, offsetY, width, height);
+        // Draw cropped image
+        ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, 200, 200);
 
-        // Compress to JPEG with quality 0.7
-        const base64 = canvas.toDataURL("image/jpeg", 0.7);
-        resolve(base64);
+        // Convert to JPEG with quality 0.7
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Failed to create blob"));
+              return;
+            }
+            blob.arrayBuffer().then((buffer) => {
+              resolve(new Uint8Array(buffer));
+            }).catch(reject);
+          },
+          "image/jpeg",
+          0.7
+        );
       };
       img.onerror = (err) => reject(err);
     });
   };
 
-  // Handle image file selection and conversion to Base64
+  // Handle image file selection and preview
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -76,17 +87,16 @@ export const NewProduct = ({ categories, fetchProducts }: any) => {
         setError("Image size must be less than 5MB");
         return;
       }
-      setImageFile(file);
-      try {
-        const compressedBase64 = await compressAndResizeImage(file);
-        setImageBase64(compressedBase64);
-      } catch (err) {
-        console.error("Error compressing image:", err);
-        setError("Failed to process image");
+      if (!file.type.startsWith("image/")) {
+        setError("Please select an image file");
+        return;
       }
+      setImageFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
     } else {
       setImageFile(null);
-      setImageBase64(null);
+      setImagePreview(null);
     }
   };
 
@@ -121,30 +131,46 @@ export const NewProduct = ({ categories, fetchProducts }: any) => {
       return;
     }
 
+    let imagePath: string | null = null;
+    if (imageFile) {
+      try {
+        // Compress and crop image
+        const compressedData = await compressAndCropImage(imageFile);
+        const fileName = `${Date.now()}_${imageFile.name.replace(/\.[^/.]+$/, "")}.jpg`; // Ensure .jpg extension
+        imagePath = await invoke("save_image", {
+          fileName,
+          data: Array.from(compressedData),
+        });
+      } catch (err) {
+        console.error("Error processing or saving image:", err);
+        setError("Failed to process or save image");
+        toast.error("Failed to process or save image");
+        return;
+      }
+    }
+
     const newProduct = {
       name,
       barcode,
       current_price_unit: price,
       quantity: qty,
       category_id: parseInt(categoryId, 10),
-      image_base64: imageBase64,
+      image_path: imagePath,
     };
-    console.log("newProduct:", newProduct);
 
+    setLoading(true);
     try {
-      // Insert into products
       const productQuery = `
-        INSERT INTO products (name, barcode, current_price_unit, quantity, category_id, image_base64)
+        INSERT INTO products (name, barcode, current_price_unit, quantity, category_id, image_path)
         VALUES ('${newProduct.name.replace(/'/g, "''")}', 
                 ${newProduct.barcode ? `'${newProduct.barcode.replace(/'/g, "''")}'` : "NULL"}, 
                 ${newProduct.current_price_unit}, 
                 ${newProduct.quantity}, 
                 ${newProduct.category_id}, 
-                ${newProduct.image_base64 ? `'${newProduct.image_base64.replace(/'/g, "''")}'` : "NULL"})
+                ${newProduct.image_path ? `'${newProduct.image_path.replace(/'/g, "''")}'` : "NULL"})
       `;
       await runSql(productQuery);
 
-      // Get the new product ID by barcode or name and created_at
       let productId: number;
       if (newProduct.barcode) {
         const idQuery = `
@@ -159,7 +185,6 @@ export const NewProduct = ({ categories, fetchProducts }: any) => {
         }
         productId = (idResult as { id: number }[])[0].id;
       } else {
-        // Fallback to name and recent created_at
         const idQuery = `
           SELECT id FROM products 
           WHERE name = '${newProduct.name.replace(/'/g, "''")}' 
@@ -173,34 +198,42 @@ export const NewProduct = ({ categories, fetchProducts }: any) => {
         productId = (idResult as { id: number }[])[0].id;
       }
 
-      // Insert into history_product_entries
       const historyQuery = `
         INSERT INTO history_product_entries (product_id, invoice_id, quantity, purchase_price, entry_type)
         VALUES (${productId}, NULL, ${newProduct.quantity}, ${newProduct.current_price_unit}, 'manual')
       `;
       await runSql(historyQuery);
 
-      // Reset state and close dialog
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+
+      toast(`Product "${newProduct.name}" created successfully.`);
       setError(null);
-      setImageBase64(null);
       setImageFile(null);
+      setImagePreview(null);
       setName("");
       setBarcode(null);
       setCurrentPriceUnit("");
       setQuantity("");
       setCategoryId("");
-      closeButtonRef.current?.click();
+      setIsOpen(false);
       await fetchProducts();
     } catch (err) {
       console.error("Error creating product:", err);
       setError(`Failed to create product: ${(err as Error).message}`);
+      toast.error(`Failed to create product: ${(err as Error).message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button size={'sm'}>Create Product</Button>
+        <Button size="sm" onClick={() => setIsOpen(true)}>
+          Create Product
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
@@ -223,7 +256,7 @@ export const NewProduct = ({ categories, fetchProducts }: any) => {
             <Input
               id="barcode"
               value={barcode || ""}
-              onChange={(e) => setBarcode(e.target.value)}
+              onChange={(e) => setBarcode(e.target.value || null)}
               placeholder="Barcode"
             />
           </div>
@@ -251,21 +284,25 @@ export const NewProduct = ({ categories, fetchProducts }: any) => {
             />
           </div>
           <div className="grid gap-3">
-            <select
-              id="category_id"
+            <Select
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="border rounded p-2"
-              required
+              onValueChange={(value) => setCategoryId(value)}
             >
-              <option value="">Select a category</option>
-              {// @ts-ignore
-                categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Select a Categories</SelectLabel>
+                  { // @ts-ignore
+                    categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id.toString()} className="w-full">
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-3">
             <Input
@@ -274,11 +311,11 @@ export const NewProduct = ({ categories, fetchProducts }: any) => {
               accept="image/*"
               onChange={handleImageChange}
             />
-            {imageBase64 && (
+            {imagePreview && (
               <div className="mt-2">
                 <p className="text-sm font-medium">Image Preview:</p>
                 <img
-                  src={imageBase64}
+                  src={imagePreview}
                   alt="Selected product"
                   className="w-24 h-24 object-cover rounded mt-1"
                 />
@@ -289,11 +326,13 @@ export const NewProduct = ({ categories, fetchProducts }: any) => {
         {error && <p className="text-red-500 text-sm">{error}</p>}
         <DialogFooter>
           <DialogClose asChild>
-            <Button ref={closeButtonRef} type="button" variant="outline">
+            <Button type="button" variant="outline" disabled={loading} onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
           </DialogClose>
-          <Button onClick={createProduct}>Save Product</Button>
+          <Button onClick={createProduct} disabled={loading}>
+            {loading ? "Saving..." : "Save Product"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -42,7 +42,7 @@ type SoldProduct = {
   quantity: number;
   price_unit: number;
   total_price: number;
-  image_base64: string | null;
+  image_path: string | null;
 };
 
 type StoreInfo = {
@@ -51,7 +51,7 @@ type StoreInfo = {
   phone: string | null;
   email: string | null;
   tax_id: string | null;
-  logo_base64: string | null;
+  logo_path: string | null;
 };
 
 type User = {
@@ -192,7 +192,7 @@ export default function SalesPage() {
   const fetchSoldProducts = async (invoiceId: number) => {
     try {
       const query = `
-        SELECT sp.id, sp.product_id, p.name, sp.quantity, sp.price_unit, sp.total_price, p.image_base64
+        SELECT sp.id, sp.product_id, p.name, sp.quantity, sp.price_unit, sp.total_price, p.image_path
         FROM sold_products sp
         JOIN products p ON sp.product_id = p.id
         WHERE sp.invoice_id = ${invoiceId}
@@ -429,9 +429,9 @@ export default function SalesPage() {
                 {soldProducts.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell>
-                      {product.image_base64 ? (
+                      {product.image_path ? (
                         <img
-                          src={product.image_base64}
+                          src={product.image_path}
                           alt={product.name}
                           className="w-8 h-8 object-cover rounded"
                         />
@@ -463,9 +463,9 @@ export default function SalesPage() {
       <div style={{ display: "none" }}>
         <div ref={printRef} className="p-6">
           <div className="text-center">
-            {storeInfo?.logo_base64 && (
+            {storeInfo?.logo_path && (
               <img
-                src={storeInfo.logo_base64}
+                src={storeInfo.logo_path}
                 alt={storeInfo.name}
                 className="w-24 h-24 mx-auto mb-4"
               />

@@ -679,7 +679,7 @@
       "z7fjk6VrGwoMoDRBIL9ql": {
         "id": "z7fjk6VrGwoMoDRBIL9ql",
         "tableId": "abNSmIbr_Wah1M69baGJU",
-        "name": "image_base64",
+        "name": "image_path",
         "comment": "",
         "dataType": "text",
         "default": "",
@@ -1559,7 +1559,7 @@
       "9gWq4z_HQ_yjxpFAo_WVs": {
         "id": "9gWq4z_HQ_yjxpFAo_WVs",
         "tableId": "ATJ9w0Vyy0aMpVQeYz8C6",
-        "name": "logo_base64",
+        "name": "logo_path",
         "comment": "",
         "dataType": "text",
         "default": "",

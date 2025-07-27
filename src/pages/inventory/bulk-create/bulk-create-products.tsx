@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+// src/components/BulkCreateProducts.tsx
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,13 +16,17 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { runSql } from "@/runSql";
 import { toast } from "sonner";
+import { invoke } from "@tauri-apps/api/core";
 import { routes } from "@/main";
+import { useImagePath } from "@/context/document-path-context";
 
 type Category = {
   id: number;
@@ -29,15 +34,15 @@ type Category = {
 };
 
 type ProductEntry = {
-  id?: number; // Existing product ID, undefined for new products
+  id?: number;
   name: string;
   barcode: string | null;
   quantity: number;
   current_price_unit: number;
   category_id: number;
   category_name?: string;
-  image_base64?: string | null;
-  isNew: boolean; // Flag to differentiate new vs existing products
+  image_path?: string | null;
+  isNew: boolean;
 };
 
 export default function BulkCreateProducts() {
@@ -53,10 +58,11 @@ export default function BulkCreateProducts() {
     category_id: 0,
     isNew: true,
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showNewProductDialog, setShowNewProductDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   // Fetch categories
   const fetchCategories = async () => {
@@ -67,12 +73,84 @@ export default function BulkCreateProducts() {
     } catch (err) {
       console.error("Error fetching categories:", err);
       setError(`Failed to fetch categories: ${(err as Error).message}`);
+      toast.error(`Failed to fetch categories: ${(err as Error).message}`);
     }
   };
 
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  // Compress and crop image to 200x200 pixels
+  const compressAndCropImage = (file: File): Promise<Uint8Array> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas context not supported"));
+          return;
+        }
+
+        // Set canvas to 200x200
+        canvas.width = 200;
+        canvas.height = 200;
+
+        // Crop to square (use the smaller dimension)
+        const size = Math.min(img.width, img.height);
+        const offsetX = (img.width - size) / 2;
+        const offsetY = (img.height - size) / 2;
+
+        // Draw cropped image
+        ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, 200, 200);
+
+        // Convert to JPEG with quality 0.7
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Failed to create blob"));
+              return;
+            }
+            blob.arrayBuffer().then((buffer) => {
+              resolve(new Uint8Array(buffer));
+            }).catch(reject);
+          },
+          "image/jpeg",
+          0.7
+        );
+      };
+      img.onerror = (err) => reject(err);
+    });
+  };
+
+  // Handle image file selection
+  const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError("Image size must be less than 5MB");
+        return;
+      }
+      if (!file.type.startsWith("image/")) {
+        setError("Please select an image file");
+        return;
+      }
+      setImageFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+    } else {
+      setImageFile(null);
+      setImagePreview(null);
+    }
+  };
 
   // Handle barcode input
   const handleBarcodeSubmit = async (e: React.FormEvent) => {
@@ -81,7 +159,7 @@ export default function BulkCreateProducts() {
 
     try {
       setLoading(true);
-      const query = `SELECT p.id, p.name, p.barcode, p.current_price_unit, p.quantity, p.category_id, p.image_base64, pc.name as category_name
+      const query = `SELECT p.id, p.name, p.barcode, p.current_price_unit, p.quantity, p.category_id, p.image_path, pc.name as category_name
                     FROM products p
                     LEFT JOIN product_categories pc ON p.category_id = pc.id
                     WHERE p.barcode = '${barcode.replace(/'/g, "''")}'`;
@@ -136,9 +214,31 @@ export default function BulkCreateProducts() {
       return;
     }
 
+    let imagePath: string | null = null;
+    if (imageFile) {
+      try {
+        const compressedData = await compressAndCropImage(imageFile);
+        const fileName = `${Date.now()}_${imageFile.name.replace(/\.[^/.]+$/, "")}.jpg`;
+        imagePath = await invoke("save_image", {
+          fileName,
+          data: Array.from(compressedData),
+        });
+      } catch (err) {
+        console.error("Error processing or saving image:", err);
+        setError("Failed to process or save image");
+        toast.error("Failed to process or save image");
+        return;
+      }
+    }
+
     setProducts((prev) => [
       ...prev,
-      { ...newProduct, isNew: true, category_name: categories.find((c) => c.id === newProduct.category_id)?.name },
+      {
+        ...newProduct,
+        isNew: true,
+        image_path: imagePath,
+        category_name: categories.find((c) => c.id === newProduct.category_id)?.name,
+      },
     ]);
     setNewProduct({
       name: "",
@@ -148,8 +248,13 @@ export default function BulkCreateProducts() {
       category_id: 0,
       isNew: true,
     });
+    setImageFile(null);
+    setImagePreview(null);
     setShowNewProductDialog(false);
     setError(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
   };
 
   // Handle quantity change in table
@@ -171,27 +276,25 @@ export default function BulkCreateProducts() {
     try {
       for (const product of products) {
         if (product.isNew) {
-          // Create new product
           const productQuery = `
-          INSERT INTO products (name, barcode, current_price_unit, quantity, category_id, image_base64)
-          VALUES ('${product.name.replace(/'/g, "''")}', 
-                  ${product.barcode ? `'${product.barcode.replace(/'/g, "''")}'` : "NULL"}, 
-                  ${product.current_price_unit}, 
-                  ${product.quantity}, 
-                  ${product.category_id}, 
-                  ${product.image_base64 ? `'${product.image_base64.replace(/'/g, "''")}'` : "NULL"})
-        `;
+            INSERT INTO products (name, barcode, current_price_unit, quantity, category_id, image_path)
+            VALUES ('${product.name.replace(/'/g, "''")}', 
+                    ${product.barcode ? `'${product.barcode.replace(/'/g, "''")}'` : "NULL"}, 
+                    ${product.current_price_unit}, 
+                    ${product.quantity}, 
+                    ${product.category_id}, 
+                    ${product.image_path ? `'${product.image_path.replace(/'/g, "''")}'` : "NULL"})
+          `;
           await runSql(productQuery);
 
-          // Retrieve the product ID
           const fetchProductQuery = `
-          SELECT id FROM products
-          WHERE name = '${product.name.replace(/'/g, "''")}'
-            AND barcode = ${product.barcode ? `'${product.barcode.replace(/'/g, "''")}'` : "NULL"}
-            AND created_at >= datetime('now', '-1 minute')
-          ORDER BY created_at DESC
-          LIMIT 1
-        `;
+            SELECT id FROM products
+            WHERE name = '${product.name.replace(/'/g, "''")}'
+              AND barcode = ${product.barcode ? `'${product.barcode.replace(/'/g, "''")}'` : "NULL"}
+              AND created_at >= datetime('now', '-1 minute')
+            ORDER BY created_at DESC
+            LIMIT 1
+          `;
           const productResult = await runSql(fetchProductQuery);
           // @ts-ignore
           if (!productResult.length) {
@@ -200,21 +303,19 @@ export default function BulkCreateProducts() {
           // @ts-ignore
           product.id = productResult[0].id;
         } else {
-          // Update existing product quantity
           const updateQuery = `
-          UPDATE products
-          SET quantity = quantity + ${product.quantity},
-              updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${product.id}
-        `;
+            UPDATE products
+            SET quantity = quantity + ${product.quantity},
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${product.id}
+          `;
           await runSql(updateQuery);
         }
 
-        // Log to history_product_entries
         const historyQuery = `
-        INSERT INTO history_product_entries (product_id, invoice_id, quantity, purchase_price, entry_type, created_at)
-        VALUES (${product.id}, NULL, ${product.quantity}, ${product.current_price_unit}, 'manual', CURRENT_TIMESTAMP)
-      `;
+          INSERT INTO history_product_entries (product_id, invoice_id, quantity, purchase_price, entry_type, created_at)
+          VALUES (${product.id}, NULL, ${product.quantity}, ${product.current_price_unit}, 'manual', CURRENT_TIMESTAMP)
+        `;
         await runSql(historyQuery);
       }
 
@@ -223,58 +324,10 @@ export default function BulkCreateProducts() {
       navigate(routes.productInventory);
     } catch (err) {
       console.error("Error saving products:", err);
+      setError(`Failed to save products: ${(err as Error).message}`);
       toast.error(`Failed to save products: ${(err as Error).message}`);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Handle image file selection
-  const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError("Image size must be less than 5MB");
-        return;
-      }
-      try {
-        const compressAndResizeImage = (file: File): Promise<string> => {
-          return new Promise((resolve, reject) => {
-            const img = new Image();
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              img.src = e.target?.result as string;
-            };
-            reader.onerror = (err) => reject(err);
-            reader.readAsDataURL(file);
-
-            img.onload = () => {
-              const canvas = document.createElement("canvas");
-              const ctx = canvas.getContext("2d");
-              if (!ctx) {
-                reject(new Error("Canvas context not supported"));
-                return;
-              }
-              canvas.width = 200;
-              canvas.height = 200;
-              const scale = Math.min(img.width, img.height) / 200;
-              const width = img.width / scale;
-              const height = img.height / scale;
-              const offsetX = (200 - width) / 2;
-              const offsetY = (200 - height) / 2;
-              ctx.drawImage(img, offsetX, offsetY, width, height);
-              const base64 = canvas.toDataURL("image/jpeg", 0.7);
-              resolve(base64);
-            };
-            img.onerror = (err) => reject(err);
-          });
-        };
-        const compressedBase64 = await compressAndResizeImage(file);
-        setNewProduct({ ...newProduct, image_base64: compressedBase64 });
-      } catch (err) {
-        console.error("Error compressing image:", err);
-        setError("Failed to process image");
-      }
     }
   };
 
@@ -305,7 +358,7 @@ export default function BulkCreateProducts() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead></TableHead>
+              <TableHead>Image</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Barcode</TableHead>
               <TableHead>Category</TableHead>
@@ -319,12 +372,13 @@ export default function BulkCreateProducts() {
               products.map((product, index) => (
                 <TableRow key={index}>
                   <TableCell>
-                    <img
-                      // @ts-ignore
-                      src={product.image_base64}
-                      alt={product.name}
-                      className="w-12 h-12 object-cover rounded"
-                    />
+                    {product.image_path && (
+                      <img
+                        src={useImagePath(product.image_path)}
+                        alt={product.name}
+                        className="w-12 h-12 object-cover rounded"
+                      />
+                    )}
                   </TableCell>
                   <TableCell>{product.name}</TableCell>
                   <TableCell>{product.barcode || "N/A"}</TableCell>
@@ -354,7 +408,7 @@ export default function BulkCreateProducts() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   No products added yet.
                 </TableCell>
               </TableRow>
@@ -409,21 +463,24 @@ export default function BulkCreateProducts() {
                 setNewProduct({ ...newProduct, category_id: parseInt(value) })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id.toString()}>
-                    {category.name}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  <SelectLabel>Select a Categories</SelectLabel>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id.toString()}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
             <Input type="file" accept="image/*" onChange={handleImageChange} />
-            {newProduct.image_base64 && (
+            {imagePreview && (
               <img
-                src={newProduct.image_base64}
+                src={imagePreview}
                 alt="Preview"
                 className="w-24 h-24 object-cover rounded"
               />
@@ -432,11 +489,13 @@ export default function BulkCreateProducts() {
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <DialogFooter>
             <DialogClose asChild>
-              <Button ref={closeButtonRef} variant="outline">
+              <Button variant="outline" disabled={loading} onClick={() => setShowNewProductDialog(false)}>
                 Cancel
               </Button>
             </DialogClose>
-            <Button onClick={handleNewProductSubmit}>Add Product</Button>
+            <Button onClick={handleNewProductSubmit} disabled={loading}>
+              {loading ? "Adding..." : "Add Product"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

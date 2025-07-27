@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { runSql } from "@/runSql";
-import { PackageOpen, SendToBackIcon } from "lucide-react";
+import { PackageOpen } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 

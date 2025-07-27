@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { runSql } from '@/runSql';
 import LoadingScreen from '@/layouts/loading-screen';
+import { useAuth } from '@/context/auth-context';
+import { useNavigate } from 'react-router-dom';
+import { routes } from '@/main';
 
 interface TableInfo {
   name: string;
@@ -29,6 +32,12 @@ interface ForeignKeyInfo {
 }
 
 const SchemaExplorer = () => {
+  const { user } = useAuth() as any;
+  const navigate = useNavigate();
+
+  if (!['admin','jervi'].includes(user.role)) {
+    navigate(routes.dashboard)
+  }
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

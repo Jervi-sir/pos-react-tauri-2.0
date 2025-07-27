@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -58,6 +58,7 @@ export function ExportDialog({
 
     // Remove excluded fields
     if (excludeFields.length) {
+    // @ts-ignore
       rows = rows.map(row => {
         const copy = { ...row };
         excludeFields.forEach(f => delete copy[f]);

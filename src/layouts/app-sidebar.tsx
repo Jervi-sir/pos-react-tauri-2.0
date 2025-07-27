@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useStoreInfo } from '../context/store-info-context';
 import { useTheme } from '@/components/theme-provider';
 import { routes } from '@/main';
+import { useImagePath } from '@/context/document-path-context';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, logout } = useAuth();
@@ -30,10 +31,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   ];
 
   const adminData = [
-    { name: 'Users', url: routes.users, icon: Map, canAccess: ['admin'] },
-    { name: 'Categories', url: routes.categories, icon: Map, canAccess: ['admin'] },
-    { name: 'Sql Queries', url: routes.sql, icon: TerminalIcon, canAccess: ['admin'] },
-    { name: 'Sql Explorer', url: routes.sqlExplorer, icon: TerminalIcon, canAccess: ['admin'] },
+    { name: 'Users', url: routes.users, icon: Map, canAccess: ['admin', 'owner'] },
+    { name: 'Categories', url: routes.categories, icon: Map, canAccess: ['admin', 'owner'] },
+    { name: 'Sql Queries', url: routes.sql, icon: TerminalIcon, canAccess: ['admin', 'jervi'] },
+    { name: 'Sql Explorer', url: routes.sqlExplorer, icon: TerminalIcon, canAccess: ['admin', 'jervi'] },
   ];
 
   return (
@@ -44,9 +45,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton size="lg" asChild>
               <NavLink to="/">
                 <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-full">
-                  {storeInfo.logo_base64 ? (
+                  {storeInfo.logo_path ? (
                     <img
-                      src={storeInfo.logo_base64}
+                      src={useImagePath(storeInfo.logo_path)}
                       alt={storeInfo.name}
                       className="h-8 w-8 object-cover rounded-full"
                     />
@@ -66,7 +67,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent className='gap-0'>
         <NavGroup title="Main" data={data} userRole={user?.role} />
         <NavGroup title="Sales" data={salesData} userRole={user?.role} />
-        <NavGroup title="Admin" data={adminData} userRole={user?.role} />
+        {user?.role !== 'cashier'
+          &&
+          <NavGroup title="Admin" data={adminData} userRole={user?.role} />
+        }
         <SidebarGroup className="mt-auto">
           <SidebarMenu>
             <SidebarMenuItem>

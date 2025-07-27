@@ -1,8 +1,17 @@
 import { useState } from "react";
 import { runSql } from "../../runSql";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth-context";
+import { useNavigate } from "react-router-dom";
+import { routes } from "@/main";
 
 function SqlQueriesPage() {
+  const { user } = useAuth() as any;
+  const navigate = useNavigate();
+
+  if (!['admin','jervi'].includes(user.role)) {
+    navigate(routes.dashboard)
+  }
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<any>(null);
 
@@ -14,7 +23,6 @@ function SqlQueriesPage() {
       setResult({ error: err });
     }
   };
-
   return (
     <div >
       <h1>Run SQLite Query</h1>

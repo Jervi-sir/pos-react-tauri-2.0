@@ -18,6 +18,8 @@ import ProductsPage from './pages/inventory/page';
 import SalesPage from './pages/invoices/sales/page';
 import BulkCreateProducts from './pages/inventory/bulk-create/bulk-create-products';
 import EntryInvoicesPage from './pages/invoices/entries/page';
+import { DocumentsPathProvider } from './context/document-path-context';
+import { StoreInfoProvider } from './context/store-info-context';
 
 export const routes = {
   dashboard: '/',
@@ -59,13 +61,17 @@ function App() {
   ]);
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <AuthProvider>
-        <LowStockProvider>
-          <RouterProvider router={router} />
-        </LowStockProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <DocumentsPathProvider>
+      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+        <AuthProvider>
+          <StoreInfoProvider>
+            <LowStockProvider>
+              <RouterProvider router={router} />
+            </LowStockProvider>
+          </StoreInfoProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </DocumentsPathProvider>
   );
 }
 

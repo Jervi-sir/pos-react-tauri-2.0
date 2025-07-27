@@ -28,7 +28,7 @@ const products = `
     barcode TEXT UNIQUE,
     current_price_unit REAL NOT NULL DEFAULT 0,
     quantity INTEGER NOT NULL DEFAULT 0,
-    image_base64 TEXT,
+    image_path TEXT,
     category_id INTEGER NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -83,7 +83,7 @@ const storeInfo = `
     phone TEXT,
     email TEXT,
     tax_id TEXT,
-    logo_base64 TEXT,
+    logo_path TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -110,8 +110,14 @@ const index6 = `
   CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON invoices(user_id);
 `;
 
-
 const insert_users = `
+  INSERT INTO users (name, email, password, role, created_at, updated_at)
+  SELECT 'Admin', 'jervi@gmail.com', 'password', 'jervi', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+  WHERE NOT EXISTS (
+    SELECT 1 FROM users WHERE email = 'jervi@gmail.com'
+  );
+`;
+const insert_users2 = `
   INSERT INTO users (name, email, password, role, created_at, updated_at)
   SELECT 'Admin', 'gacembekhira@gmail.com', 'password', 'admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
   WHERE NOT EXISTS (
@@ -119,8 +125,9 @@ const insert_users = `
   );
 `;
 
+// @ts-ignore
 const insert_store_info = `
-  INSERT INTO store_info (id, name, address, phone, email, tax_id, logo_base64, created_at, updated_at)
+  INSERT INTO store_info (id, name, address, phone, email, tax_id, logo_path, created_at, updated_at)
   SELECT 1, 'Default Store', '', '', '', '', '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
   WHERE NOT EXISTS (
     SELECT 1 FROM store_info WHERE id = 1
@@ -143,6 +150,7 @@ export const schemaStatements = [
   index4,
   index5,
   index6,
-  // insert_users,
+  insert_users,
+  insert_users2,
   // insert_store_info,
 ];

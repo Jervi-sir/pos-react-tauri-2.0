@@ -1,5 +1,5 @@
 {
-  "name": "pos-react-tauri",
+  "name": "pos-jervi-iverj",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -26,6 +26,7 @@
     "@szhsin/react-menu": "^4.4.1",
     "@tailwindcss/vite": "^4.1.11",
     "@tauri-apps/api": "^2.7.0",
+    "@tauri-apps/plugin-fs": "^2.4.1",
     "@tauri-apps/plugin-opener": "^2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -45,6 +46,7 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",
     "use-debounce": "^10.0.5",
+    "uuid": "^11.1.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

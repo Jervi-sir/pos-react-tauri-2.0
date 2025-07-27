@@ -1,178 +1,158 @@
+import { invoke } from "@tauri-apps/api/core";
 import { faker } from '@faker-js/faker';
-import { schemaStatements } from './schema'; // Adjust path to your schema file
-import { runSql } from '@/runSql';
 
-// Helper function to execute SQL queries with error handling
-async function executeQuery(query: string) {
+// Function to execute SQL query using Tauri's runSql
+async function runSql(query: string): Promise<any> {
   try {
-    await runSql(query);
-    console.log('Query executed successfully');
+    return await invoke("run_sql", { query });
   } catch (error) {
-    console.error('Error executing query:', query, error);
+    console.error(`Error executing query: ${query}`, error);
     throw error;
   }
 }
 
-// Helper to generate random number within range
-const randomInt = (min: number, max: number) => 
-  Math.floor(Math.random() * (max - min + 1)) + min;
+// Function to generate random barcode
+function generateBarcode(): string {
+  return faker.string.numeric(12); // Generates a 12-digit barcode
+}
 
-// Main function to generate fake data
-export async function generateFakeData() {
+// Helper function to escape single quotes in SQL values
+function escapeSqlString(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+// Seeder function
+export async function seedDatabase() {
   try {
-    // First, ensure schema is applied
-    for (const statement of schemaStatements) {
-      await executeQuery(statement);
-    }
+    // Enable foreign keys
+    await runSql('PRAGMA foreign_keys = ON;');
+    console.log('Enabled foreign keys');
 
-    // Generate Users (10 users: 1 admin (already inserted), 2 owners, 3 cashiers, 4 jervis)
-    const userRoles = ['owner', 'owner', 'cashier', 'cashier', 'cashier', 'jervi', 'jervi', 'jervi', 'jervi'];
-    for (const role of userRoles) {
-      const email = faker.internet.email();
+    // Seed users (10 users)
+    const userRoles = ['owner', 'cashier', 'admin', 'jervi'];
+    const userIds: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      const email = i === 0 ? 'gacembekhira@gmail.com' : faker.internet.email();
+      const role = i === 0 ? 'admin' : faker.helpers.arrayElement(userRoles);
+      const name = escapeSqlString(faker.person.fullName());
+      const password = escapeSqlString(faker.internet.password());
       const query = `
-        INSERT INTO users (name, email, password, role)
-        VALUES ('${faker.person.fullName()}', '${email}', 'hashed_${faker.internet.password()}', '${role}');
+        INSERT OR IGNORE INTO users (name, email, password, role, created_at, updated_at)
+        VALUES ('${name}', '${email}', '${password}', '${role}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
       `;
-      await executeQuery(query);
+      await runSql(query);
+      // Fetch the user ID
+      const userResult = await runSql(`SELECT id FROM users WHERE email = '${email}';`);
+      if (userResult && userResult.length > 0) {
+        userIds.push(userResult[0].id);
+      }
     }
+    console.log('Seeded 10 users');
 
-    // Generate Suppliers (20 suppliers)
+    // Seed store_info (1 record)
+    const storeName = escapeSqlString('Default Store');
+    const address = escapeSqlString(faker.location.streetAddress());
+    const phone = escapeSqlString(faker.phone.number());
+    const email = escapeSqlString(faker.internet.email());
+    const taxId = escapeSqlString(faker.finance.bic());
+    const logoPath = escapeSqlString('/path/to/logo.png');
+    await runSql(`
+      INSERT OR IGNORE INTO store_info (id, name, address, phone, email, tax_id, logo_path, created_at, updated_at)
+      VALUES (1, '${storeName}', '${address}', '${phone}', '${email}', '${taxId}', '${logoPath}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+    `);
+    console.log('Seeded store_info');
+
+    // Seed product_categories (20 categories)
+    const categoryIds: number[] = [];
     for (let i = 0; i < 20; i++) {
-      const query = `
-        INSERT INTO suppliers (name, contact_info)
-        VALUES ('${faker.company.name()}', '${faker.phone.number()} | ${faker.internet.email()}');
-      `;
-      await executeQuery(query);
+      const name = escapeSqlString(faker.commerce.department());
+      await runSql(`
+        INSERT INTO product_categories (name, created_at, updated_at)
+        VALUES ('${name}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+      `);
+      // Fetch the category ID
+      const categoryResult = await runSql(`SELECT id FROM product_categories WHERE name = '${name}';`);
+      if (categoryResult && categoryResult.length > 0) {
+        categoryIds.push(categoryResult[0].id);
+      }
     }
+    console.log('Seeded 20 product categories');
 
-    // Generate Categories (15 categories)
-    const categories = [
-      'Electronics', 'Clothing', 'Food & Beverages', 'Home & Garden', 'Sports',
-      'Beauty', 'Toys', 'Books', 'Automotive', 'Jewelry',
-      'Furniture', 'Appliances', 'Tools', 'Pet Supplies', 'Office Supplies'
-    ];
-    for (const category of categories) {
-      const query = `
-        INSERT INTO categories (name)
-        VALUES ('${category}');
-      `;
-      await executeQuery(query);
-    }
-
-    // Generate Products (300 products)
+    // Seed products (300 products)
+    const productIds: { id: number; price: number }[] = [];
     for (let i = 0; i < 300; i++) {
-      const categoryId = randomInt(1, 15);
-      const query = `
-        INSERT INTO products (category_id, name, barcode, image_base64, price_unit, current_stock)
-        VALUES (
-          ${categoryId},
-          '${faker.commerce.productName()}',
-          '${faker.string.uuid()}',
-          '${faker.image.dataUri({ width: 200, height: 200 })}',
-          ${faker.commerce.price({ min: 1, max: 1000, dec: 2 })},
-          ${randomInt(0, 100)}
-        );
-      `;
-      await executeQuery(query);
+      const name = escapeSqlString(faker.commerce.productName());
+      const barcode = generateBarcode();
+          // @ts-ignore
+      const price = faker.number.float({ min: 1, max: 100, precision: 2 });
+      const quantity = faker.number.int({ min: 0, max: 1000 });
+      const imagePath = escapeSqlString(`/images/products/${faker.string.uuid()}.jpg`);
+      const categoryId = faker.helpers.arrayElement(categoryIds);
+      await runSql(`
+        INSERT INTO products (name, barcode, current_price_unit, quantity, image_path, category_id, created_at, updated_at)
+        VALUES ('${name}', '${barcode}', ${price}, ${quantity}, '${imagePath}', ${categoryId}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+      `);
+      // Fetch the product ID and price
+      const productResult = await runSql(`SELECT id, current_price_unit FROM products WHERE barcode = '${barcode}';`);
+      if (productResult && productResult.length > 0) {
+        productIds.push({ id: productResult[0].id, price: productResult[0].current_price_unit });
+      }
     }
+    console.log('Seeded 300 products');
 
-    // Generate Purchases (50 purchases)
-    for (let i = 0; i < 50; i++) {
-      const supplierId = randomInt(1, 20);
-      const userId = randomInt(1, 10);
-      const totalPrice = faker.commerce.price({ min: 100, max: 5000, dec: 2 });
-      const query = `
-        INSERT INTO purchases (supplier_id, user_id, total_price)
-        VALUES (${supplierId}, ${userId}, ${totalPrice});
+    // Seed invoices (500 invoices, mix of 'sold' and 'bought')
+    for (let i = 0; i < 500; i++) {
+      const invoiceType = faker.helpers.arrayElement(['sold', 'bought']);
+      const userId = faker.helpers.arrayElement(userIds);
+      const totalQuantity = faker.number.int({ min: 1, max: 50 });
+          // @ts-ignore
+      const totalPrice = faker.number.float({ min: 10, max: 1000, precision: 2 });
+
+      // Insert invoice
+      const invoiceQuery = `
+        INSERT INTO invoices (invoice_type, total_quantity, total_price, user_id, created_at, updated_at)
+        VALUES ('${invoiceType}', ${totalQuantity}, ${totalPrice}, ${userId}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
       `;
-      await executeQuery(query);
+      await runSql(invoiceQuery);
+      // Fetch the invoice ID (SQLite's last_insert_rowid())
+      const invoiceResult = await runSql('SELECT last_insert_rowid() AS id;');
+      const invoiceId = invoiceResult[0].id;
+
+      if (invoiceType === 'sold') {
+        // Seed sold_products (1-5 products per sold invoice)
+        const numSoldProducts = faker.number.int({ min: 1, max: 5 });
+        for (let j = 0; j < numSoldProducts; j++) {
+          const product = faker.helpers.arrayElement(productIds);
+          const quantity = faker.number.int({ min: 1, max: 10 });
+          const priceUnit = product.price;
+          const totalPriceProduct = quantity * priceUnit;
+
+          await runSql(`
+            INSERT INTO sold_products (product_id, invoice_id, quantity, total_price, price_unit, created_at, updated_at)
+            VALUES (${product.id}, ${invoiceId}, ${quantity}, ${totalPriceProduct}, ${priceUnit}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+          `);
+        }
+      } else {
+        // Seed history_product_entries (1-5 entries per bought invoice)
+        const numEntries = faker.number.int({ min: 1, max: 5 });
+        for (let j = 0; j < numEntries; j++) {
+          const product = faker.helpers.arrayElement(productIds);
+          const quantity = faker.number.int({ min: 1, max: 20 });
+          // @ts-ignore
+          const purchasePrice = faker.number.float({ min: 0.5, max: product.price, precision: 2 });
+          const entryType = faker.helpers.arrayElement(['purchase', 'manual', 'correction', 'return']);
+
+          await runSql(`
+            INSERT INTO history_product_entries (product_id, invoice_id, quantity, purchase_price, entry_type, created_at, updated_at)
+            VALUES (${product.id}, ${invoiceId}, ${quantity}, ${purchasePrice}, '${entryType}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+          `);
+        }
+      }
     }
+    console.log('Seeded 500 invoices with sold_products and history_product_entries');
 
-    // Generate Sales (100 sales)
-    for (let i = 0; i < 100; i++) {
-      const userId = randomInt(1, 10);
-      const totalPrice = faker.commerce.price({ min: 10, max: 1000, dec: 2 });
-      const query = `
-        INSERT INTO sales (user_id, total_price)
-        VALUES (${userId}, ${totalPrice});
-      `;
-      await executeQuery(query);
-    }
-
-    // Generate Invoices (50 purchase invoices + 100 sale invoices)
-    // Purchase invoices
-    for (let i = 1; i <= 50; i++) {
-      const userId = randomInt(1, 10);
-      const amount = faker.commerce.price({ min: 100, max: 5000, dec: 2 });
-      const query = `
-        INSERT INTO invoices (user_id, purchase_id, invoice_type, amount)
-        VALUES (${userId}, ${i}, 'bought', ${amount});
-      `;
-      await executeQuery(query);
-    }
-
-    // Sale invoices
-    for (let i = 1; i <= 100; i++) {
-      const userId = randomInt(1, 10);
-      const amount = faker.commerce.price({ min: 10, max: 1000, dec: 2 });
-      const query = `
-        INSERT INTO invoices (user_id, sale_id, invoice_type, amount)
-        VALUES (${userId}, ${i}, 'sold', ${amount});
-      `;
-      await executeQuery(query);
-    }
-
-    // Generate Stock Entries (200 entries)
-    for (let i = 0; i < 200; i++) {
-      const productId = randomInt(1, 300);
-      const invoiceId = randomInt(1, 150);
-      const entryTypes = ['purchase', 'manual', 'correction', 'return'];
-      const entryType = entryTypes[randomInt(0, 3)];
-      const query = `
-        INSERT INTO stock_entries (product_id, invoice_id, quantity, purchase_price, entry_type)
-        VALUES (
-          ${productId},
-          ${invoiceId},
-          ${randomInt(1, 50)},
-          ${faker.commerce.price({ min: 1, max: 500, dec: 2 })},
-          '${entryType}'
-        );
-      `;
-      await executeQuery(query);
-    }
-
-    // Generate Sale Products (300 sale products)
-    for (let i = 0; i < 300; i++) {
-      const saleId = randomInt(1, 100);
-      const productId = randomInt(1, 300);
-      const query = `
-        INSERT INTO sale_products (sale_id, product_id, quantity, price_unit)
-        VALUES (
-          ${saleId},
-          ${productId},
-          ${randomInt(1, 10)},
-          ${faker.commerce.price({ min: 1, max: 1000, dec: 2 })}
-        );
-      `;
-      await executeQuery(query);
-    }
-
-    // Update store_info with more realistic data
-    const updateStoreQuery = `
-      UPDATE store_info
-      SET 
-        name = '${faker.company.name()} Store',
-        address = '${faker.location.streetAddress()}',
-        phone = '${faker.phone.number()}',
-        email = '${faker.internet.email()}',
-        tax_id = '${faker.finance.bic()}'
-      WHERE id = 1;
-    `;
-    await executeQuery(updateStoreQuery);
-
-    console.log('Fake data generation completed successfully!');
+    console.log('Database seeding completed!');
   } catch (error) {
-    console.error('Error generating fake data:', error);
-    throw error;
+    console.error('Error seeding database:', error);
   }
 }

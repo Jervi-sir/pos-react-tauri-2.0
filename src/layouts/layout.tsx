@@ -11,7 +11,6 @@ import { Toaster } from '@/components/ui/sonner';
 import { ModeToggle } from '@/components/mode-toggle';
 import { useAuth } from '@/context/auth-context';
 import { LoginPage } from '@/pages/auth/login';
-import { StoreInfoProvider } from '../context/store-info-context';
 import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LoadingScreen from './loading-screen';
@@ -67,7 +66,7 @@ const AppLayout = () => {
   if (!user) return <LoginPage />;
 
   return (
-    <StoreInfoProvider>
+    <>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
@@ -94,7 +93,7 @@ const AppLayout = () => {
         </SidebarInset>
       </SidebarProvider>
       <Toaster />
-    </StoreInfoProvider>
+    </>
   );
 };
 

@@ -4,6 +4,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { runSql } from "@/runSql";
 import { PaginationSection } from "@/components/pagination-section";
+import { useAuth } from "@/context/auth-context";
+import { useNavigate } from "react-router-dom";
+import { routes } from "@/main";
 
 type Category = {
   id: number;
@@ -15,7 +18,14 @@ type Category = {
 const PAGE_SIZE = 10;
 
 export default function CategoriesPage() {
+  const { user } = useAuth() as any;
+  const navigate = useNavigate();
+
+  if (!['admin', 'owner', 'jervi'].includes(user.role)) {
+    navigate(routes.dashboard)
+  }
   const [categories, setCategories] = useState<Category[]>([]);
+  // @ts-ignore
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);

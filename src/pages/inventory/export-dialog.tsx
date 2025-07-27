@@ -13,7 +13,7 @@ type Product = {
   barcode: string | null;
   current_price_unit: number;
   quantity: number;
-  image_base64: string | null;
+  image_path: string | null;
   category_id: number;
   category_name: string;
   created_at: string;
@@ -60,8 +60,8 @@ export function ExportProductsDialog({ categoryId, searchQuery }: ExportProducts
       `;
       const products = (await runSql(query)) as Product[];
 
-      // Prepare data for export (removing image_base64 as it's not needed in export)
-      const exportData = products.map(({ image_base64, ...product }) => ({
+      // Prepare data for export (removing image_path as it's not needed in export)
+      const exportData = products.map(({ image_path, ...product }) => ({
         ID: product.id,
         Name: product.name,
         Barcode: product.barcode || "N/A",

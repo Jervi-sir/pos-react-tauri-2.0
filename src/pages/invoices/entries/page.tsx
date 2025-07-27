@@ -42,7 +42,7 @@ type SoldProduct = {
   quantity: number;
   price_unit: number;
   total_price: number;
-  image_base64: string | null;
+  image_path: string | null;
 };
 
 type StoreInfo = {
@@ -51,7 +51,7 @@ type StoreInfo = {
   phone: string | null;
   email: string | null;
   tax_id: string | null;
-  logo_base64: string | null;
+  logo_path: string | null;
 };
 
 type User = {
@@ -192,7 +192,7 @@ export default function EntryInvoicesPage() {
     try {
       const query = `
         SELECT hpe.id, hpe.product_id, p.name, hpe.quantity, hpe.purchase_price AS price_unit, 
-              (hpe.quantity * hpe.purchase_price) AS total_price, p.image_base64
+              (hpe.quantity * hpe.purchase_price) AS total_price, p.image_path
         FROM history_product_entries hpe
         JOIN products p ON hpe.product_id = p.id
         WHERE hpe.invoice_id = ${invoiceId}
@@ -429,9 +429,9 @@ export default function EntryInvoicesPage() {
                   soldProducts.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell>
-                        {product.image_base64 ? (
+                        {product.image_path ? (
                           <img
-                            src={product.image_base64}
+                            src={product.image_path}
                             alt={product.name}
                             className="w-8 h-8 object-cover rounded"
                           />
@@ -470,9 +470,9 @@ export default function EntryInvoicesPage() {
       <div style={{ display: "none" }}>
         <div ref={printRef} className="p-6">
           <div className="text-center">
-            {storeInfo?.logo_base64 && (
+            {storeInfo?.logo_path && (
               <img
-                src={storeInfo.logo_base64}
+                src={storeInfo.logo_path}
                 alt={storeInfo.name}
                 className="w-24 h-24 mx-auto mb-4"
               />

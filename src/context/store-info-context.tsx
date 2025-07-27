@@ -9,12 +9,13 @@ type StoreInfo = {
   phone: string;
   email: string;
   tax_id: string;
-  logo_base64: string;
+  logo_path: string;
 };
 
 interface StoreInfoContextType {
   storeInfo: StoreInfo;
   updateStoreInfo: (newInfo: Partial<StoreInfo>) => Promise<void>;
+  saveToStorage: any
 }
 
 const StoreInfoContext = createContext<StoreInfoContextType | undefined>(undefined);
@@ -31,7 +32,7 @@ const getStoredData = (): StoreInfo | null => {
 const saveToStorage = (data: StoreInfo): void => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {}
+  } catch { }
 };
 
 const defaultStoreInfo: StoreInfo = {
@@ -41,7 +42,7 @@ const defaultStoreInfo: StoreInfo = {
   phone: "",
   email: "",
   tax_id: "",
-  logo_base64: "",
+  logo_path: "",
 };
 
 export const StoreInfoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -52,18 +53,22 @@ export const StoreInfoProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     const initialize = async () => {
       setLoading(true);
+    // @ts-ignore
       const stored = getStoredData();
-      if (stored && stored.id === 1) {
-        setStoreInfo(stored);
-        setLoading(false);
-        return;
-      }
+      // if (stored && stored.id === 1) {
+      //   setStoreInfo(stored);
+      //   setLoading(false);
+      //   return;
+      // }
       try {
-        const response = await runSql("SELECT * FROM store_info WHERE id = 1 LIMIT 1");
+        const response = await runSql("SELECT * FROM store_info LIMIT 1");
         // @ts-ignore
         const rows = response || [];
+        // @ts-ignore
         if (rows && rows.length > 0 && rows[0]) {
+          // @ts-ignore
           setStoreInfo(rows[0]);
+          // @ts-ignore
           saveToStorage(rows[0]);
         } else {
           setStoreInfo(defaultStoreInfo);
@@ -94,7 +99,7 @@ export const StoreInfoProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         phone = '${sanitize(updated.phone)}',
         email = '${sanitize(updated.email)}',
         tax_id = '${sanitize(updated.tax_id)}',
-        logo_base64 = '${sanitize(updated.logo_base64)}',
+        logo_path = '${sanitize(updated.logo_path)}',
         updated_at = CURRENT_TIMESTAMP
       WHERE id = 1
     `);
@@ -107,7 +112,7 @@ export const StoreInfoProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   if (loading) return <LoadingScreen />;
 
   return (
-    <StoreInfoContext.Provider value={{ storeInfo, updateStoreInfo }}>
+    <StoreInfoContext.Provider value={{ storeInfo, updateStoreInfo, saveToStorage }}>
       {children}
     </StoreInfoContext.Provider>
   );

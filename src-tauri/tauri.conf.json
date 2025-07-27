@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "pos-react-tauri",
-  "version": "0.1.0",
-  "identifier": "com.pos-react-tauri.app",
+  "productName": "nvl-store",
+  "version": "1.0.1",
+  "identifier": "com.nvl-store.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,13 +12,22 @@
   "app": {
     "windows": [
       {
-        "title": "pos-react-tauri",
+        "title": "NVL store",
         "width": 1024,
         "height": 768
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "requireLiteralLeadingDot": false,
+          "allow": [
+            "**/*"
+          ]
+        }
+      }
     }
   },
   "bundle": {
@@ -31,5 +40,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "fs": {
+      "requireLiteralLeadingDot": false,
+      "scope": ["$DOCUMENT/**/*"]
+    }
   }
 }

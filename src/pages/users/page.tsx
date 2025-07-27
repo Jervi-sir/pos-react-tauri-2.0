@@ -5,13 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { runSql } from "@/runSql";
 import { PaginationSection } from "@/components/pagination-section";
+import { useAuth } from "@/context/auth-context";
+import { useNavigate } from "react-router-dom";
+import { routes } from "@/main";
 
 type User = {
   id: number;
   name: string;
   email: string;
   password: string;
-  role: "owner" | "admin" | "cashier";
+  role: "owner" | "admin" | "cashier" | "jervi";
 };
 
 const ROLE_OPTIONS = [
@@ -23,6 +26,14 @@ const ROLE_OPTIONS = [
 const PAGE_SIZE = 10; // Number of users per page
 
 export default function UsersScreen() {
+  const { user  } = useAuth();
+  const navigate = useNavigate();
+  const me = user as User;
+
+  if(!['admin', 'owner', 'jervi'].includes(me.role)) {
+    navigate(routes.dashboard)
+  }
+
   const [users, setUsers] = useState<User[]>([]);
   // @ts-ignore
   const [loading, setLoading] = useState(false);
@@ -33,7 +44,7 @@ export default function UsersScreen() {
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [userPassword, setUserPassword] = useState("");
-  const [userRole, setUserRole] = useState<"owner" | "admin" | "cashier">("cashier");
+  const [userRole, setUserRole] = useState<"owner" | "admin" | "cashier" | "jervi">("cashier");
   const [error, setError] = useState<string | null>(null);
 
   // Fetch users with pagination
@@ -125,6 +136,7 @@ export default function UsersScreen() {
 
   // Delete user
   const handleDelete = async (id: number) => {
+    if(me.id === id) return;
     if (!window.confirm("Delete this user?")) return;
     try {
       await runSql(`DELETE FROM users WHERE id = ${id}`);
@@ -174,6 +186,7 @@ export default function UsersScreen() {
                       `);
                       fetchUsers();
                     }}
+                    disabled={me.id === user.id}
                   >
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Select Role" />
@@ -193,6 +206,7 @@ export default function UsersScreen() {
                     size="sm"
                     variant="destructive"
                     onClick={() => handleDelete(user.id)}
+                    disabled={me.id === user.id}
                   >
                     Delete
                   </Button>
@@ -239,8 +253,9 @@ export default function UsersScreen() {
             <Select
               value={userRole}
               onValueChange={v => setUserRole(v as any)}
+              disabled={me.id === editId}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select Role" />
               </SelectTrigger>
               <SelectContent>
